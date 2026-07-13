@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DaSaver">
+<meta name="theme-color" content="#070b09">
+<title>DaSaver | Your Life Assistant</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&display=swap');
+  :root {
+    --bg:#070b09; --card:#101613; --card2:#16201b;
+    --em:#6fd9a6; --em-hi:#9ae8c4; --em-lo:#3fa876;
+    --gold:#d8bd84;
+    --line:rgba(111,217,166,.16); --line-soft:rgba(111,217,166,.08);
+    --text:#e9efeb; --muted:#8a9a91;
+    --green:#3ddc97; --red:#e5604f; --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
+  body{background:radial-gradient(1200px 600px at 50% -10%, #0c1410 0%, var(--bg) 55%);color:var(--text);min-height:100vh;padding:18px 16px calc(20px + env(safe-area-inset-bottom));display:flex;justify-content:center}
+  .container{width:100%;max-width:440px}
+  .logo{text-align:center;margin:14px 0 26px}
+  .logo h1{font-size:27px;letter-spacing:.5px;font-weight:300;color:var(--text)}
+  .logo h1 b{font-weight:700;background:linear-gradient(120deg,var(--em-hi),var(--em-lo));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .logo p{color:var(--muted);font-size:11.5px;margin-top:5px;letter-spacing:2.5px;text-transform:uppercase}
+  .logo::after{content:'';display:block;width:56px;height:1px;margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--em),transparent)}
+  .card{background:linear-gradient(180deg,#131c17 0%,var(--card) 100%);border-radius:var(--radius);padding:20px;border:1px solid var(--line);margin-bottom:14px;box-shadow:0 12px 32px rgba(0,0,0,.35)}
+  .card h2{font-size:16px;margin-bottom:14px;font-weight:500;letter-spacing:.3px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px;letter-spacing:.3px}
+  input,select,textarea{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:16px;text-align:right;transition:border-color .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--em)}
+  :focus-visible{outline:2px solid var(--em);outline-offset:2px}
+  button{width:100%;padding:13px;margin-top:14px;border:none;border-radius:11px;background:linear-gradient(135deg,var(--em-hi) 0%,var(--em) 45%,var(--em-lo) 100%);color:#08120c;font-size:15px;font-weight:700;letter-spacing:.4px;cursor:pointer;box-shadow:0 6px 18px rgba(111,217,166,.15);transition:transform .12s}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.45;cursor:wait}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--em);box-shadow:none;font-weight:500}
+  .msg{margin-top:12px;padding:11px;border-radius:11px;font-size:13px;text-align:center;display:none}
+  .msg.err{display:block;background:rgba(229,96,79,.1);color:var(--red);border:1px solid rgba(229,96,79,.28)}
+  .msg.ok{display:block;background:rgba(61,220,151,.08);color:var(--green);border:1px solid rgba(61,220,151,.25)}
+  .hidden{display:none!important}
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tab{flex:1;padding:11px 2px;text-align:center;border-radius:11px;background:var(--card);border:1px solid var(--line-soft);color:var(--muted);font-size:12px;cursor:pointer;transition:all .13s}
+  .tab.active{background:rgba(111,217,166,.1);border-color:var(--em);color:var(--em);font-weight:700}
+  .counter{display:flex;justify-content:space-around;background:linear-gradient(180deg,#18231d,#141d18);border:1px solid var(--line-soft);border-radius:13px;padding:14px 8px;margin-bottom:14px}
+  .counter div{text-align:center;flex:1}
+  .counter div+div{border-right:1px solid var(--line-soft)}
+  .counter .num{font-size:20px;font-weight:700;color:var(--em)}
+  .counter .lbl{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .item{display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line-soft);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:13.5px}
+  .item .meta{color:var(--muted);font-size:11px;margin-top:3px}
+  .item .del{background:transparent;border:none;color:var(--red);font-size:15px;width:auto;margin:0;padding:4px 8px;cursor:pointer;box-shadow:none}
+  .bar{height:7px;border-radius:99px;background:var(--card2);border:1px solid var(--line-soft);overflow:hidden;margin-top:7px}
+  .bar > div{height:100%;background:linear-gradient(90deg,var(--em-lo),var(--em-hi));border-radius:99px;transition:width .4s}
+  .chip{display:inline-block;padding:8px 13px;border-radius:99px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:12.5px;cursor:pointer;margin:4px 2px 0}
+  .chip.active{border-color:var(--em);color:var(--em);background:rgba(111,217,166,.1);font-weight:700}
+  .hab{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+  .hab .box{width:30px;height:30px;border-radius:9px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:all .15s}
+  .hab.done .box{border-color:var(--em);background:rgba(111,217,166,.14);color:var(--em)}
+  .hab .nm{flex:1;font-size:14.5px}
+  .hab .streak{font-size:11.5px;color:var(--gold);font-weight:700}
+  .dots{display:flex;gap:3px;margin-top:3px}
+  .dot{width:9px;height:9px;border-radius:3px;background:var(--card2);border:1px solid var(--line-soft)}
+  .dot.on{background:var(--em-lo);border-color:var(--em)}
+  .task{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px solid var(--line-soft)}
+  .task .tbox{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--em);flex-shrink:0;cursor:pointer}
+  .task.done .tbox{border-color:var(--em);background:rgba(111,217,166,.12)}
+  .task.done .tt{text-decoration:line-through;color:var(--muted)}
+  .task .tt{flex:1;font-size:14px}
+  .sec-h{font-size:14px;margin:18px 0 8px;color:var(--em);letter-spacing:.4px;font-weight:500;display:flex;align-items:center;gap:8px}
+  .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+  .greet{font-size:13px;color:var(--muted);margin-bottom:4px}
+  .gname{font-size:20px;font-weight:700;color:var(--em);margin-bottom:14px}
+  .exit{background:transparent;border:1px solid var(--line-soft);color:var(--muted);width:auto;padding:8px 14px;margin:0;font-size:12px;font-weight:400;box-shadow:none}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .chart-card{background:var(--card2);border:1px solid var(--line-soft);border-radius:13px;padding:12px;margin-top:10px}
+  .row2{display:flex;gap:8px}
+  .row2 > *{flex:1}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo"><h1>Da<b>Saver</b></h1><p>Your Life Assistant</p></div>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+    <h2>تسجيل الدخول</h2>
+    <label>رقم المستخدم</label>
+    <input type="tel" id="last4" maxlength="4" inputmode="numeric" placeholder="• • • •" style="text-align:center;letter-spacing:2px">
+    <label>كلمة المرور</label>
+    <input type="password" id="pin" maxlength="10" inputmode="numeric" placeholder="• • • • • • •" style="text-align:center;letter-spacing:2px">
+    <button id="loginBtn" onclick="doLogin()">دخول</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <!-- APP -->
+  <div class="hidden" id="app">
+    <div class="topbar">
+      <div><div class="greet" id="greetLine">—</div><div class="gname" id="gName">—</div></div>
+      <button class="exit" onclick="doLogout()">خروج</button>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabToday" onclick="showTab('today')">☀️ اليوم</div>
+      <div class="tab" id="tabMoney" onclick="showTab('money')">💰 المال</div>
+      <div class="tab" id="tabBody" onclick="showTab('body')">💪 الجسم</div>
+      <div class="tab" id="tabHabits" onclick="showTab('habits')">🔥 العادات</div>
+    </div>
+
+    <!-- ============ TODAY ============ -->
+    <div id="paneToday">
+      <div class="card">
+        <h2>📋 مهام اليوم <span style="color:var(--muted);font-size:12px" id="todayDate"></span></h2>
+        <div id="todayTasks"><div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div></div>
+      </div>
+      <div class="card">
+        <h2>⚡ عاداتي اليوم</h2>
+        <div id="quickHabits"></div>
+      </div>
+      <div class="card">
+        <h2>🌙 خطة بكرة</h2>
+        <p style="font-size:12px;color:var(--muted)">اكتبها الليلة، تستقبلك الصبح.</p>
+        <div class="row2" style="margin-top:8px">
+          <input type="text" id="newTask" placeholder="مهمة لبكرة..." onkeydown="if(event.key==='Enter')addTask()">
+          <button style="margin:0;width:90px" onclick="addTask()">أضِف</button>
+        </div>
+        <div id="tomorrowTasks"></div>
+      </div>
+    </div>
+
+    <!-- ============ MONEY ============ -->
+    <div id="paneMoney" class="hidden">
+      <div class="counter">
+        <div><div class="num" id="mDebtLeft">—</div><div class="lbl">متبقي ديوني</div></div>
+        <div><div class="num" id="mRecv">—</div><div class="lbl">مستحقات معلقة</div></div>
+        <div><div class="num" id="mLeak">—</div><div class="lbl">مصاريف الشهر</div></div>
+      </div>
+
+      <div class="card">
+        <h2>💳 الديون</h2>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <span class="chip active" id="dc-personal" onclick="debtCat('personal')">شخصية</span>
+          <span class="chip" id="dc-father" onclick="debtCat('father')">مشروع الوالد</span>
+          <span class="chip" id="dc-gov" onclick="debtCat('gov')">حكومية</span>
+        </div>
+        <div id="debtsList"><div style="text-align:center;color:var(--muted);padding:10px;font-size:13px">...</div></div>
+        <button class="ghost" onclick="$('addDebtWrap').classList.toggle('hidden')">＋ إضافة دين</button>
+        <div id="addDebtWrap" class="hidden">
+          <div class="row2"><input type="text" id="ndName" placeholder="الاسم"><input type="tel" id="ndAmt" inputmode="decimal" placeholder="المبلغ"></div>
+          <button onclick="addDebt()">حفظ الدين</button>
+        </div>
+        <div class="msg" id="debtMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>🏗️ مستحقات المؤسسة</h2>
+        <div id="recvList"></div>
+        <button class="ghost" onclick="$('addRecvWrap').classList.toggle('hidden')">＋ إضافة مستحق</button>
+        <div id="addRecvWrap" class="hidden">
+          <div class="row2"><input type="text" id="nrName" placeholder="الجهة/الوصف"><input type="tel" id="nrAmt" inputmode="decimal" placeholder="المبلغ"></div>
+          <button onclick="addRecv()">حفظ المستحق</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>☕ مصاريف اليوم (التسرّب)</h2>
+        <div id="leakBarWrap">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span id="leakTxt">—</span><span id="leakBudgetTxt">—</span></div>
+          <div class="bar"><div id="leakBar" style="width:0%"></div></div>
+        </div>
+        <div style="margin-top:10px">
+          <span class="chip" onclick="expCat(this,'قهوة')">☕ قهوة</span>
+          <span class="chip" onclick="expCat(this,'أكل')">🍔 أكل</span>
+          <span class="chip" onclick="expCat(this,'بنزين')">⛽ بنزين</span>
+          <span class="chip" onclick="expCat(this,'تسوق')">🛍️ تسوق</span>
+          <span class="chip" onclick="expCat(this,'أخرى')">📦 أخرى</span>
+        </div>
+        <div class="row2" style="margin-top:8px">
+          <input type="tel" id="expAmt" inputmode="decimal" placeholder="المبلغ">
+          <button style="margin:0;width:90px" onclick="addExpense()">سجّل</button>
+        </div>
+        <div id="expList"></div>
+        <div class="msg" id="expMsg"></div>
+      </div>
+    </div>
+
+    <!-- ============ BODY ============ -->
+    <div id="paneBody" class="hidden">
+      <div class="counter">
+        <div><div class="num" id="bWeek">0</div><div class="lbl">تمارين الأسبوع</div></div>
+        <div><div class="num" id="bStreak">0</div><div class="lbl">أيام متتالية</div></div>
+        <div><div class="num" id="bWeight">—</div><div class="lbl">آخر وزن</div></div>
+      </div>
+      <div class="card">
+        <h2>🏋️ تمرين اليوم</h2>
+        <p style="font-size:12px;color:var(--muted)">التمرين نفسه في Lyfta — هنا نوثّق الالتزام.</p>
+        <button id="gymBtn" onclick="toggleWorkout()">سجّلت تمريني اليوم ✅</button>
+        <div id="last14" class="dots" style="margin-top:12px;justify-content:center"></div>
+        <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:4px">آخر 14 يوم</div>
+      </div>
+      <div class="card">
+        <h2>⚖️ الوزن</h2>
+        <div class="row2">
+          <input type="tel" id="wKg" inputmode="decimal" placeholder="وزن اليوم (كجم)">
+          <button style="margin:0;width:90px" onclick="addWeight()">حفظ</button>
+        </div>
+        <div class="chart-card"><canvas id="weightChart" height="180"></canvas></div>
+        <div class="msg" id="wMsg"></div>
+      </div>
+    </div>
+
+    <!-- ============ HABITS ============ -->
+    <div id="paneHabits" class="hidden">
+      <div class="card">
+        <h2>🔥 عاداتي</h2>
+        <div id="habitsList"></div>
+        <button class="ghost" onclick="$('addHabWrap').classList.toggle('hidden')">＋ عادة جديدة</button>
+        <div id="addHabWrap" class="hidden">
+          <div class="row2"><input type="text" id="nhIcon" placeholder="👍" style="width:70px;flex:none;text-align:center"><input type="text" id="nhName" placeholder="اسم العادة"></div>
+          <button onclick="addHabit()">حفظ العادة</button>
+        </div>
+        <div class="msg" id="habMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+if (typeof supabase === 'undefined') {
+  document.body.innerHTML = '<div style="color:#e5604f;text-align:center;padding:40px;font-family:sans-serif">فشل تحميل مكتبة الاتصال — تأكد من الإنترنت وحدّث الصفحة</div>';
+  throw new Error('supabase-js failed to load');
+}
+const db = supabase.createClient("https://lgewtvrqfofnkrfzqqlz.supabase.co","sb_publishable_lrw3zxHRNhgOYqwivMhrjQ_QV5z-NmN");
+
+const $=id=>document.getElementById(id);
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
+const curMonth=()=>new Date().toISOString().slice(0,7);
+const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2200)};
+const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+
+let me=null, habits=[], debts=[], curDebtCat='personal', chosenExpCat='أخرى', weightChartObj=null;
+
+// ============ AUTH ============
+async function doLogin(){
+  const l=$('last4').value.trim(),p=$('pin').value.trim();
+  if(l.length!==4||p.length<6)return msg('loginMsg','أدخل البيانات كاملة','err');
+  $('loginBtn').disabled=true;
+  const{error}=await db.auth.signInWithPassword({email:`${l}@example.com`,password:p});
+  $('loginBtn').disabled=false;
+  if(error)return msg('loginMsg','بيانات الدخول غير صحيحة','err');
+  boot();
+}
+async function boot(){
+  const{data:{user}}=await db.auth.getUser();
+  if(!user)return;
+  const{data:prof}=await db.from('users').select('*').eq('id',user.id).single();
+  if(!prof||prof.role!=='supervisor'){
+    msg('loginMsg','هذا التطبيق شخصي 🔒','err');
+    await db.auth.signOut();return;
+  }
+  me=prof;
+  const h=new Date().getHours();
+  $('greetLine').textContent=h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙';
+  $('gName').textContent=me.full_name.split(' ')[0];
+  $('todayDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
+  $('loginCard').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  showTab('today');
+}
+async function doLogout(){await db.auth.signOut();me=null;$('app').classList.add('hidden');$('loginCard').classList.remove('hidden')}
+
+function showTab(t){
+  ['Today','Money','Body','Habits'].forEach(x=>{
+    $('tab'+x).classList.toggle('active',x.toLowerCase()===t);
+    $('pane'+x).classList.toggle('hidden',x.toLowerCase()!==t);
+  });
+  if(t==='today')loadToday();
+  if(t==='money')loadMoney();
+  if(t==='body')loadBody();
+  if(t==='habits')loadHabits();
+}
+
+// ============ TODAY ============
+async function loadToday(){
+  const[{data:tt},{data:tm}]=await Promise.all([
+    db.from('ds_tasks').select('*').eq('for_date',todayStr()).order('sort_order'),
+    db.from('ds_tasks').select('*').eq('for_date',tomorrowStr()).order('sort_order')
+  ]);
+  renderTasks('todayTasks',tt||[],true);
+  renderTasks('tomorrowTasks',tm||[],false);
+  loadQuickHabits();
+}
+function renderTasks(elId,list,isToday){
+  if(!list.length){
+    $(elId).innerHTML=isToday?'<div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div>':'';
+    return;
+  }
+  $(elId).innerHTML=list.map(t=>`
+    <div class="task ${t.done?'done':''}">
+      <div class="tbox" onclick="toggleTask(${t.id},${!t.done},'${isToday?'today':'tomorrow'}')">${t.done?'✓':''}</div>
+      <div class="tt">${t.title}</div>
+      <button class="del" onclick="delTask(${t.id})">🗑️</button>
+    </div>`).join('');
+}
+async function addTask(){
+  const t=$('newTask').value.trim();
+  if(!t)return;
+  await db.from('ds_tasks').insert({title:t,for_date:tomorrowStr()});
+  $('newTask').value='';
+  loadToday();
+}
+async function toggleTask(id,done){await db.from('ds_tasks').update({done}).eq('id',id);loadToday()}
+async function delTask(id){await db.from('ds_tasks').delete().eq('id',id);loadToday()}
+
+async function loadQuickHabits(){
+  const[{data:hs},{data:logs}]=await Promise.all([
+    db.from('ds_habits').select('*').eq('active',true).order('sort_order'),
+    db.from('ds_habit_logs').select('habit_id').eq('on_date',todayStr())
+  ]);
+  habits=hs||[];
+  const done=new Set((logs||[]).map(l=>l.habit_id));
+  $('quickHabits').innerHTML=habits.map(h=>`
+    <div class="hab ${done.has(h.id)?'done':''}" onclick="toggleHabit(${h.id},${done.has(h.id)},'today')">
+      <div class="box">${done.has(h.id)?'✓':h.icon}</div>
+      <div class="nm">${h.name}</div>
+    </div>`).join('');
+}
+async function toggleHabit(id,isDone,src){
+  if(isDone)await db.from('ds_habit_logs').delete().eq('habit_id',id).eq('on_date',todayStr());
+  else await db.from('ds_habit_logs').insert({habit_id:id,on_date:todayStr()});
+  if(src==='today')loadQuickHabits();else loadHabits();
+}
+
+// ============ MONEY ============
+async function loadMoney(){
+  const[{data:ds},{data:pays},{data:recv},{data:exps},{data:st}]=await Promise.all([
+    db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
+    db.from('ds_payments').select('debt_id,amount'),
+    db.from('ds_receivables').select('*').order('created_at'),
+    db.from('ds_expenses').select('*').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
+    db.from('ds_settings').select('*').maybeSingle()
+  ]);
+  debts=ds||[];
+  const paidBy={};(pays||[]).forEach(p=>paidBy[p.debt_id]=(paidBy[p.debt_id]||0)+Number(p.amount));
+  debts.forEach(d=>d.paid=paidBy[d.id]||0);
+  // counters: personal+gov remaining (his own burden)
+  const ownLeft=debts.filter(d=>d.category!=='father').reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
+  const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
+  const leakTotal=(exps||[]).reduce((a,e)=>a+Number(e.amount),0);
+  $('mDebtLeft').textContent=fmt(ownLeft);
+  $('mRecv').textContent=fmt(recvPend);
+  $('mLeak').textContent=fmt(leakTotal);
+  renderDebts();
+  // receivables
+  $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
+    <div class="item"><div><b>${r.name}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
+      <span style="display:flex;gap:6px">
+        ${r.status==='pending'?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="markRecv(${r.id})">استلمت ✓</button>`:''}
+        <button class="del" onclick="delRecv(${r.id})">🗑️</button>
+      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقات المؤسسة هنا لتتابعها</div>';
+  // leak bar
+  const budget=st?Number(st.monthly_leak_budget):1000;
+  $('leakTxt').textContent=`${fmt(leakTotal)} ريال`;
+  $('leakBudgetTxt').textContent=`الحد: ${fmt(budget)}`;
+  const pct=Math.min(100,budget>0?leakTotal/budget*100:0);
+  $('leakBar').style.width=pct+'%';
+  $('leakBar').style.background=pct>=100?'var(--red)':'';
+  // recent expenses (last 6)
+  $('expList').innerHTML=(exps||[]).slice(0,6).map(e=>`
+    <div class="item"><div><b>${e.category}</b><div class="meta">${e.spent_on}</div></div>
+      <span style="display:flex;gap:6px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
+      <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`).join('');
+}
+function debtCat(c){
+  curDebtCat=c;
+  ['personal','father','gov'].forEach(x=>$('dc-'+x).classList.toggle('active',x===c));
+  renderDebts();
+}
+function renderDebts(){
+  const list=debts.filter(d=>d.category===curDebtCat);
+  $('debtsList').innerHTML=list.length?list.map(d=>{
+    const left=Math.max(0,d.amount-d.paid);
+    const pct=d.amount>0?Math.min(100,d.paid/d.amount*100):0;
+    return `<div class="item" style="display:block">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><b>${d.name}</b><div class="meta">${fmt(left)} متبقي من ${fmt(d.amount)}${d.note?' · '+d.note:''}</div></div>
+        <span style="display:flex;gap:6px">
+          ${left>0?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="payDebt(${d.id})">سداد 💸</button>`:'<span style="color:var(--green);font-size:12px;font-weight:700">✅ مغلق</span>'}
+        </span>
+      </div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+    </div>`;
+  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا ديون في هذي الفئة 🎉</div>';
+}
+async function payDebt(id){
+  const amt=prompt('كم سدّدت؟ (ريال)');
+  if(!amt||isNaN(parseFloat(amt)))return;
+  await db.from('ds_payments').insert({debt_id:id,amount:parseFloat(amt)});
+  loadMoney();
+}
+async function addDebt(){
+  const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value);
+  if(!n||isNaN(a))return msg('debtMsg','أكمل الاسم والمبلغ','err');
+  await db.from('ds_debts').insert({name:n,amount:a,category:curDebtCat});
+  $('ndName').value='';$('ndAmt').value='';
+  $('addDebtWrap').classList.add('hidden');
+  msg('debtMsg','أُضيف الدين ✅','ok');
+  loadMoney();
+}
+async function addRecv(){
+  const n=$('nrName').value.trim(),a=parseFloat($('nrAmt').value);
+  if(!n||isNaN(a))return;
+  await db.from('ds_receivables').insert({name:n,amount:a});
+  $('nrName').value='';$('nrAmt').value='';
+  $('addRecvWrap').classList.add('hidden');
+  loadMoney();
+}
+async function markRecv(id){await db.from('ds_receivables').update({status:'received'}).eq('id',id);loadMoney()}
+async function delRecv(id){if(confirm('حذف هذا المستحق؟')){await db.from('ds_receivables').delete().eq('id',id);loadMoney()}}
+function expCat(el,c){
+  chosenExpCat=c;
+  document.querySelectorAll('#paneMoney .chip').forEach(x=>{if(x.id==='')x.classList.remove('active')});
+  document.querySelectorAll('#paneMoney .card:last-child .chip').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+}
+async function addExpense(){
+  const a=parseFloat($('expAmt').value);
+  if(isNaN(a)||a<=0)return msg('expMsg','أدخل المبلغ','err');
+  await db.from('ds_expenses').insert({amount:a,category:chosenExpCat});
+  $('expAmt').value='';
+  loadMoney();
+}
+async function delExp(id){await db.from('ds_expenses').delete().eq('id',id);loadMoney()}
+
+// ============ BODY ============
+async function loadBody(){
+  const from=new Date();from.setDate(from.getDate()-30);
+  const[{data:wo},{data:ws}]=await Promise.all([
+    db.from('ds_workouts').select('on_date').gte('on_date',from.toISOString().slice(0,10)).order('on_date'),
+    db.from('ds_weights').select('*').order('on_date').limit(60)
+  ]);
+  const dates=new Set((wo||[]).map(w=>w.on_date));
+  // week count (last 7 days)
+  let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(d.toISOString().slice(0,10)))wk++}
+  // streak
+  let st=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(d.toISOString().slice(0,10)))st++;else if(i>0)break;else continue}
+  $('bWeek').textContent=wk;
+  $('bStreak').textContent=st;
+  // gym button state
+  const doneToday=dates.has(todayStr());
+  $('gymBtn').textContent=doneToday?'✅ تمرين اليوم موثّق — اضغط للتراجع':'سجّلت تمريني اليوم ✅';
+  $('gymBtn').dataset.done=doneToday?'1':'0';
+  // last 14 dots
+  let dots='';
+  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${dates.has(d.toISOString().slice(0,10))?'on':''}"></div>`}
+  $('last14').innerHTML=dots;
+  // weight
+  const weights=ws||[];
+  $('bWeight').textContent=weights.length?Number(weights[weights.length-1].kg):'—';
+  if(weightChartObj)weightChartObj.destroy();
+  if(weights.length){
+    weightChartObj=new Chart($('weightChart'),{
+      type:'line',
+      data:{labels:weights.map(w=>w.on_date.slice(5)),datasets:[{label:'الوزن',data:weights.map(w=>Number(w.kg)),borderColor:'#6fd9a6',backgroundColor:'rgba(111,217,166,.1)',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
+      options:{responsive:true,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
+                y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
+    });
+  }
+}
+async function toggleWorkout(){
+  if($('gymBtn').dataset.done==='1')await db.from('ds_workouts').delete().eq('on_date',todayStr());
+  else await db.from('ds_workouts').insert({on_date:todayStr()});
+  loadBody();
+}
+async function addWeight(){
+  const k=parseFloat($('wKg').value);
+  if(isNaN(k)||k<=0)return msg('wMsg','أدخل وزن صحيح','err');
+  const{error}=await db.from('ds_weights').upsert({on_date:todayStr(),kg:k,user_id:me.id},{onConflict:'user_id,on_date'});
+  if(error)return msg('wMsg','خطأ في الحفظ','err');
+  $('wKg').value='';
+  msg('wMsg','تم حفظ الوزن ⚖️','ok');
+  loadBody();
+}
+
+// ============ HABITS ============
+async function loadHabits(){
+  const from=new Date();from.setDate(from.getDate()-13);
+  const[{data:hs},{data:logs}]=await Promise.all([
+    db.from('ds_habits').select('*').eq('active',true).order('sort_order'),
+    db.from('ds_habit_logs').select('habit_id,on_date').gte('on_date',from.toISOString().slice(0,10))
+  ]);
+  habits=hs||[];
+  const byH={};(logs||[]).forEach(l=>{byH[l.habit_id]=byH[l.habit_id]||new Set();byH[l.habit_id].add(l.on_date)});
+  $('habitsList').innerHTML=habits.map(h=>{
+    const set=byH[h.id]||new Set();
+    const doneToday=set.has(todayStr());
+    let streak=0;
+    for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(set.has(d.toISOString().slice(0,10)))streak++;else if(i>0)break;else continue}
+    let dots='';
+    for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${set.has(d.toISOString().slice(0,10))?'on':''}"></div>`}
+    return `<div class="hab ${doneToday?'done':''}">
+      <div class="box" onclick="toggleHabit(${h.id},${doneToday},'habits')">${doneToday?'✓':h.icon}</div>
+      <div class="nm">${h.name}<div class="dots">${dots}</div></div>
+      <div class="streak">🔥 ${streak}</div>
+      <button class="del" onclick="delHabit(${h.id})">✖</button>
+    </div>`;
+  }).join('')||'<div style="text-align:center;color:var(--muted);padding:10px">لا عادات — أضِف أول عادة</div>';
+}
+async function addHabit(){
+  const n=$('nhName').value.trim(),ic=$('nhIcon').value.trim()||'⭐';
+  if(!n)return msg('habMsg','اكتب اسم العادة','err');
+  await db.from('ds_habits').insert({name:n,icon:ic,sort_order:habits.length+1});
+  $('nhName').value='';$('nhIcon').value='';
+  $('addHabWrap').classList.add('hidden');
+  loadHabits();
+}
+async function delHabit(id){
+  if(!confirm('إيقاف هذي العادة؟ سجلها يبقى محفوظاً'))return;
+  await db.from('ds_habits').update({active:false}).eq('id',id);
+  loadHabits();
+}
+
+// Enter keys + session restore
+$('last4').addEventListener('keydown',e=>{if(e.key==='Enter')$('pin').focus()});
+$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+db.auth.getSession().then(({data:{session}})=>{if(session)boot()});
+</script>
+</body>
+</html>
