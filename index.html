@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="DaSaver">
+<meta name="apple-mobile-web-app-title" content="DaObserver">
 <meta name="theme-color" content="#070b09">
-<title>DaSaver | Your Life Assistant</title>
+<title>DaObserver | Your Life Observer</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
@@ -83,7 +83,10 @@
 </head>
 <body>
 <div class="container">
-  <div class="logo"><h1>Da<b>Saver</b></h1><p>Your Life Assistant</p></div>
+  <div class="logo">
+    <div style="font-size:20px;margin-bottom:2px;opacity:.85">👁️</div>
+    <h1>Da<b>Observer</b></h1><p>Your Life Observer</p>
+  </div>
 
   <!-- LOGIN -->
   <div class="card" id="loginCard">
@@ -232,7 +235,9 @@ if (typeof supabase === 'undefined') {
   document.body.innerHTML = '<div style="color:#e5604f;text-align:center;padding:40px;font-family:sans-serif">فشل تحميل مكتبة الاتصال — تأكد من الإنترنت وحدّث الصفحة</div>';
   throw new Error('supabase-js failed to load');
 }
-const db = supabase.createClient("https://lgewtvrqfofnkrfzqqlz.supabase.co","sb_publishable_lrw3zxHRNhgOYqwivMhrjQ_QV5z-NmN");
+const SUPABASE_URL = "https://mlmsqmjicowzclvvybxf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_A6wQspO_mQq8ANZHrCrNFQ_iJB4hc4J";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $=id=>document.getElementById(id);
 const todayStr=()=>new Date().toISOString().slice(0,10);
@@ -256,14 +261,10 @@ async function doLogin(){
 async function boot(){
   const{data:{user}}=await db.auth.getUser();
   if(!user)return;
-  const{data:prof}=await db.from('users').select('*').eq('id',user.id).single();
-  if(!prof||prof.role!=='supervisor'){
-    msg('loginMsg','هذا التطبيق شخصي 🔒','err');
-    await db.auth.signOut();return;
-  }
-  me=prof;
+  me={id:user.id,full_name:'أحمد'};
+  await seedIfEmpty();
   const h=new Date().getHours();
-  $('greetLine').textContent=h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙';
+  $('greetLine').textContent=(h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙')+' — عينك على يومك 👁️';
   $('gName').textContent=me.full_name.split(' ')[0];
   $('todayDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
   $('loginCard').classList.add('hidden');
@@ -271,6 +272,28 @@ async function boot(){
   showTab('today');
 }
 async function doLogout(){await db.auth.signOut();me=null;$('app').classList.add('hidden');$('loginCard').classList.remove('hidden')}
+
+async function seedIfEmpty(){
+  const{count}=await db.from('ds_habits').select('*',{count:'exact',head:true});
+  if(count>0)return;
+  await db.from('ds_habits').insert([
+    {name:'قراءة',icon:'📖',sort_order:1},
+    {name:'برمجة',icon:'💻',sort_order:2},
+    {name:'كتابة',icon:'✍️',sort_order:3},
+    {name:'حفظ أبيات شعر',icon:'🎭',sort_order:4}
+  ]);
+  await db.from('ds_debts').insert([
+    {name:'مشروع الوالد (إجمالي)',category:'father',amount:72040,note:'يُسدد من مستحقات المؤسسة'},
+    {name:'عبود',category:'personal',amount:15000},
+    {name:'عمار',category:'personal',amount:8000},
+    {name:'شويحنة',category:'personal',amount:2400},
+    {name:'عرودة',category:'personal',amount:1000},
+    {name:'غفور',category:'personal',amount:700},
+    {name:'رسوم تجديد',category:'gov',amount:5000},
+    {name:'مخالفات مرور',category:'gov',amount:2300}
+  ]);
+  await db.from('ds_settings').insert({monthly_leak_budget:1000});
+}
 
 function showTab(t){
   ['Today','Money','Body','Habits'].forEach(x=>{
