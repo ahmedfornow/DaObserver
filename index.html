@@ -52,6 +52,8 @@
   .item{display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line-soft);border-radius:11px;padding:11px 13px;margin-top:8px;font-size:13.5px}
   .item .meta{color:var(--muted);font-size:11px;margin-top:3px}
   .item .del{background:transparent;border:none;color:var(--red);font-size:15px;width:auto;margin:0;padding:4px 8px;cursor:pointer;box-shadow:none}
+  .item .ico{background:transparent;border:none;color:var(--muted);font-size:14px;width:auto;margin:0;padding:4px 6px;cursor:pointer;box-shadow:none}
+  .dim{opacity:.5}
   .bar{height:7px;border-radius:99px;background:var(--card2);border:1px solid var(--line-soft);overflow:hidden;margin-top:7px}
   .bar > div{height:100%;background:linear-gradient(90deg,var(--em-lo),var(--em-hi));border-radius:99px;transition:width .4s}
   .chip{display:inline-block;padding:8px 13px;border-radius:99px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:12.5px;cursor:pointer;margin:4px 2px 0}
@@ -103,7 +105,10 @@
   <div class="hidden" id="app">
     <div class="topbar">
       <div><div class="greet" id="greetLine">—</div><div class="gname" id="gName">—</div></div>
-      <button class="exit" onclick="doLogout()">خروج</button>
+      <div style="display:flex;gap:6px">
+        <button class="exit" onclick="showTab('settings')" aria-label="الإعدادات">⚙️</button>
+        <button class="exit" onclick="doLogout()">خروج</button>
+      </div>
     </div>
     <div class="tabs">
       <div class="tab active" id="tabToday" onclick="showTab('today')">☀️ اليوم</div>
@@ -130,6 +135,7 @@
           <button style="margin:0;width:90px" onclick="addTask()">أضِف</button>
         </div>
         <div id="tomorrowTasks"></div>
+        <div class="msg" id="todayMsg"></div>
       </div>
     </div>
 
@@ -149,10 +155,11 @@
           <span class="chip" id="dc-gov" onclick="debtCat('gov')">حكومية</span>
         </div>
         <div id="debtsList"><div style="text-align:center;color:var(--muted);padding:10px;font-size:13px">...</div></div>
-        <button class="ghost" onclick="$('addDebtWrap').classList.toggle('hidden')">＋ إضافة دين</button>
+        <button class="ghost" onclick="openDebtForm()">＋ إضافة دين</button>
         <div id="addDebtWrap" class="hidden">
           <div class="row2"><input type="text" id="ndName" placeholder="الاسم"><input type="tel" id="ndAmt" inputmode="decimal" placeholder="المبلغ"></div>
-          <button onclick="addDebt()">حفظ الدين</button>
+          <input type="text" id="ndNote" placeholder="ملاحظة (اختياري)" style="margin-top:8px">
+          <button id="debtSaveBtn" onclick="saveDebt()">حفظ الدين</button>
         </div>
         <div class="msg" id="debtMsg"></div>
       </div>
@@ -160,11 +167,12 @@
       <div class="card">
         <h2>🏗️ مستحقات المؤسسة</h2>
         <div id="recvList"></div>
-        <button class="ghost" onclick="$('addRecvWrap').classList.toggle('hidden')">＋ إضافة مستحق</button>
+        <button class="ghost" onclick="openRecvForm()">＋ إضافة مستحق</button>
         <div id="addRecvWrap" class="hidden">
           <div class="row2"><input type="text" id="nrName" placeholder="الجهة/الوصف"><input type="tel" id="nrAmt" inputmode="decimal" placeholder="المبلغ"></div>
-          <button onclick="addRecv()">حفظ المستحق</button>
+          <button id="recvSaveBtn" onclick="saveRecv()">حفظ المستحق</button>
         </div>
+        <div class="msg" id="recvMsg"></div>
       </div>
 
       <div class="card">
@@ -173,16 +181,10 @@
           <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span id="leakTxt">—</span><span id="leakBudgetTxt">—</span></div>
           <div class="bar"><div id="leakBar" style="width:0%"></div></div>
         </div>
-        <div style="margin-top:10px">
-          <span class="chip" onclick="expCat(this,'قهوة')">☕ قهوة</span>
-          <span class="chip" onclick="expCat(this,'أكل')">🍔 أكل</span>
-          <span class="chip" onclick="expCat(this,'بنزين')">⛽ بنزين</span>
-          <span class="chip" onclick="expCat(this,'تسوق')">🛍️ تسوق</span>
-          <span class="chip" onclick="expCat(this,'أخرى')">📦 أخرى</span>
-        </div>
+        <div id="expChips" style="margin-top:10px"></div>
         <div class="row2" style="margin-top:8px">
           <input type="tel" id="expAmt" inputmode="decimal" placeholder="المبلغ">
-          <button style="margin:0;width:90px" onclick="addExpense()">سجّل</button>
+          <button id="expSaveBtn" style="margin:0;width:90px" onclick="saveExp()">سجّل</button>
         </div>
         <div id="expList"></div>
         <div class="msg" id="expMsg"></div>
@@ -202,6 +204,7 @@
         <button id="gymBtn" onclick="toggleWorkout()">سجّلت تمريني اليوم ✅</button>
         <div id="last14" class="dots" style="margin-top:12px;justify-content:center"></div>
         <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:4px">آخر 14 يوم</div>
+        <div class="msg" id="gymMsg"></div>
       </div>
       <div class="card">
         <h2>⚖️ الوزن</h2>
@@ -219,12 +222,45 @@
       <div class="card">
         <h2>🔥 عاداتي</h2>
         <div id="habitsList"></div>
-        <button class="ghost" onclick="$('addHabWrap').classList.toggle('hidden')">＋ عادة جديدة</button>
+        <button class="ghost" onclick="openHabForm()">＋ عادة جديدة</button>
         <div id="addHabWrap" class="hidden">
           <div class="row2"><input type="text" id="nhIcon" placeholder="👍" style="width:70px;flex:none;text-align:center"><input type="text" id="nhName" placeholder="اسم العادة"></div>
-          <button onclick="addHabit()">حفظ العادة</button>
+          <button id="habSaveBtn" onclick="saveHab()">حفظ العادة</button>
         </div>
         <div class="msg" id="habMsg"></div>
+      </div>
+    </div>
+
+    <!-- ============ SETTINGS ============ -->
+    <div id="paneSettings" class="hidden">
+      <div class="card">
+        <h2>⚙️ الإعدادات</h2>
+        <label>حد مصاريف الشهر (ريال)</label>
+        <input type="tel" id="stBudget" inputmode="decimal" placeholder="1000">
+        <label>الوزن المستهدف (كجم)</label>
+        <input type="tel" id="stTarget" inputmode="decimal" placeholder="اختياري">
+        <button onclick="saveSettings()">حفظ الإعدادات</button>
+        <div class="msg" id="stMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>🏷️ فئات المصاريف</h2>
+        <div id="catList"></div>
+        <button class="ghost" onclick="openCatForm()">＋ فئة جديدة</button>
+        <div id="addCatWrap" class="hidden">
+          <div class="row2"><input type="text" id="ncIcon" placeholder="📦" style="width:70px;flex:none;text-align:center"><input type="text" id="ncName" placeholder="اسم الفئة"></div>
+          <button id="catSaveBtn" onclick="saveCat()">حفظ الفئة</button>
+        </div>
+        <div class="msg" id="catMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>🗂️ الأرشيف</h2>
+        <div class="sec-h">ديون مؤرشفة</div>
+        <div id="archDebts"></div>
+        <div class="sec-h">عادات موقوفة</div>
+        <div id="archHabits"></div>
+        <div class="msg" id="archMsg"></div>
       </div>
     </div>
   </div>
@@ -240,13 +276,20 @@ const SUPABASE_KEY = "sb_publishable_A6wQspO_mQq8ANZHrCrNFQ_iJB4hc4J";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $=id=>document.getElementById(id);
-const todayStr=()=>new Date().toISOString().slice(0,10);
-const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
-const curMonth=()=>new Date().toISOString().slice(0,7);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// F8: local-time dates (was toISOString = UTC; shifted everything between 00:00–03:00 KSA)
+const dstr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayStr=()=>dstr(new Date());
+const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return dstr(d)};
+const curMonth=()=>todayStr().slice(0,7);
 const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2200)};
+// F9: surface the REAL Supabase error, never fail silently
+const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
 const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 
-let me=null, habits=[], debts=[], curDebtCat='personal', chosenExpCat='أخرى', weightChartObj=null;
+let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], paymentsByDebt={};
+let curDebtCat='personal', chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
+let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null;
 
 // ============ AUTH ============
 async function doLogin(){
@@ -262,7 +305,6 @@ async function boot(){
   const{data:{user}}=await db.auth.getUser();
   if(!user)return;
   me={id:user.id,full_name:'أحمد'};
-  await seedIfEmpty();
   const h=new Date().getHours();
   $('greetLine').textContent=(h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙')+' — عينك على يومك 👁️';
   $('gName').textContent=me.full_name.split(' ')[0];
@@ -273,37 +315,18 @@ async function boot(){
 }
 async function doLogout(){await db.auth.signOut();me=null;$('app').classList.add('hidden');$('loginCard').classList.remove('hidden')}
 
-async function seedIfEmpty(){
-  const{count}=await db.from('ds_habits').select('*',{count:'exact',head:true});
-  if(count>0)return;
-  await db.from('ds_habits').insert([
-    {name:'قراءة',icon:'📖',sort_order:1},
-    {name:'برمجة',icon:'💻',sort_order:2},
-    {name:'كتابة',icon:'✍️',sort_order:3},
-    {name:'حفظ أبيات شعر',icon:'🎭',sort_order:4}
-  ]);
-  await db.from('ds_debts').insert([
-    {name:'مشروع الوالد (إجمالي)',category:'father',amount:72040,note:'يُسدد من مستحقات المؤسسة'},
-    {name:'عبود',category:'personal',amount:15000},
-    {name:'عمار',category:'personal',amount:8000},
-    {name:'شويحنة',category:'personal',amount:2400},
-    {name:'عرودة',category:'personal',amount:1000},
-    {name:'غفور',category:'personal',amount:700},
-    {name:'رسوم تجديد',category:'gov',amount:5000},
-    {name:'مخالفات مرور',category:'gov',amount:2300}
-  ]);
-  await db.from('ds_settings').insert({monthly_leak_budget:1000});
-}
-
 function showTab(t){
   ['Today','Money','Body','Habits'].forEach(x=>{
     $('tab'+x).classList.toggle('active',x.toLowerCase()===t);
+  });
+  ['Today','Money','Body','Habits','Settings'].forEach(x=>{
     $('pane'+x).classList.toggle('hidden',x.toLowerCase()!==t);
   });
   if(t==='today')loadToday();
   if(t==='money')loadMoney();
   if(t==='body')loadBody();
   if(t==='habits')loadHabits();
+  if(t==='settings')loadSettings();
 }
 
 // ============ TODAY ============
@@ -323,20 +346,31 @@ function renderTasks(elId,list,isToday){
   }
   $(elId).innerHTML=list.map(t=>`
     <div class="task ${t.done?'done':''}">
-      <div class="tbox" onclick="toggleTask(${t.id},${!t.done},'${isToday?'today':'tomorrow'}')">${t.done?'✓':''}</div>
-      <div class="tt">${t.title}</div>
+      <div class="tbox" onclick="toggleTask(${t.id},${!t.done})">${t.done?'✓':''}</div>
+      <div class="tt">${esc(t.title)}</div>
       <button class="del" onclick="delTask(${t.id})">🗑️</button>
     </div>`).join('');
 }
 async function addTask(){
   const t=$('newTask').value.trim();
   if(!t)return;
-  await db.from('ds_tasks').insert({title:t,for_date:tomorrowStr()});
+  if(busy)return;busy=true;
+  const{error}=await db.from('ds_tasks').insert({title:t,for_date:tomorrowStr()});
+  busy=false;
+  if(fail('todayMsg',error))return;
   $('newTask').value='';
   loadToday();
 }
-async function toggleTask(id,done){await db.from('ds_tasks').update({done}).eq('id',id);loadToday()}
-async function delTask(id){await db.from('ds_tasks').delete().eq('id',id);loadToday()}
+async function toggleTask(id,done){
+  const{error}=await db.from('ds_tasks').update({done}).eq('id',id);
+  if(fail('todayMsg',error))return;
+  loadToday();
+}
+async function delTask(id){
+  const{error}=await db.from('ds_tasks').delete().eq('id',id);
+  if(fail('todayMsg',error))return;
+  loadToday();
+}
 
 async function loadQuickHabits(){
   const[{data:hs},{data:logs}]=await Promise.all([
@@ -347,43 +381,62 @@ async function loadQuickHabits(){
   const done=new Set((logs||[]).map(l=>l.habit_id));
   $('quickHabits').innerHTML=habits.map(h=>`
     <div class="hab ${done.has(h.id)?'done':''}" onclick="toggleHabit(${h.id},${done.has(h.id)},'today')">
-      <div class="box">${done.has(h.id)?'✓':h.icon}</div>
-      <div class="nm">${h.name}</div>
+      <div class="box">${done.has(h.id)?'✓':esc(h.icon)}</div>
+      <div class="nm">${esc(h.name)}</div>
     </div>`).join('');
 }
 async function toggleHabit(id,isDone,src){
-  if(isDone)await db.from('ds_habit_logs').delete().eq('habit_id',id).eq('on_date',todayStr());
-  else await db.from('ds_habit_logs').insert({habit_id:id,on_date:todayStr()});
+  const q=isDone
+    ? db.from('ds_habit_logs').delete().eq('habit_id',id).eq('on_date',todayStr())
+    : db.from('ds_habit_logs').insert({habit_id:id,on_date:todayStr()});
+  const{error}=await q;
+  if(fail(src==='today'?'todayMsg':'habMsg',error))return;
   if(src==='today')loadQuickHabits();else loadHabits();
 }
 
 // ============ MONEY ============
+function resetMoneyForms(){
+  editDebtId=null;editRecvId=null;editExpId=null;
+  $('debtSaveBtn').textContent='حفظ الدين';
+  $('recvSaveBtn').textContent='حفظ المستحق';
+  $('expSaveBtn').textContent='سجّل';
+}
 async function loadMoney(){
-  const[{data:ds},{data:pays},{data:recv},{data:exps},{data:st}]=await Promise.all([
+  resetMoneyForms();
+  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs}]=await Promise.all([
     db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
-    db.from('ds_payments').select('debt_id,amount'),
+    db.from('ds_payments').select('id,debt_id,amount,paid_on,note'),
     db.from('ds_receivables').select('*').order('created_at'),
-    db.from('ds_expenses').select('*').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
-    db.from('ds_settings').select('*').maybeSingle()
+    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
+    db.from('ds_settings').select('*').maybeSingle(),
+    db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order')
   ]);
-  debts=ds||[];
-  const paidBy={};(pays||[]).forEach(p=>paidBy[p.debt_id]=(paidBy[p.debt_id]||0)+Number(p.amount));
-  debts.forEach(d=>d.paid=paidBy[d.id]||0);
+  debts=ds||[]; exps=ex||[]; expCats=cs||[];
+  paymentsByDebt={};
+  (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
+  Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
+  debts.forEach(d=>d.paid=(paymentsByDebt[d.id]||[]).reduce((a,p)=>a+Number(p.amount),0));
   // counters: personal+gov remaining (his own burden)
   const ownLeft=debts.filter(d=>d.category!=='father').reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
   const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
-  const leakTotal=(exps||[]).reduce((a,e)=>a+Number(e.amount),0);
+  const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
   $('mDebtLeft').textContent=fmt(ownLeft);
   $('mRecv').textContent=fmt(recvPend);
   $('mLeak').textContent=fmt(leakTotal);
+  // category chips (DB-driven)
+  if(!expCats.find(c=>c.id===chosenExpCatId))
+    chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
+  renderExpChips();
   renderDebts();
   // receivables
   $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
-    <div class="item"><div><b>${r.name}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
-      <span style="display:flex;gap:6px">
+    <div class="item"><div><b>${esc(r.name)}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
+      <span style="display:flex;gap:4px;align-items:center">
         ${r.status==='pending'?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="markRecv(${r.id})">استلمت ✓</button>`:''}
+        <button class="ico" onclick="editRecv(${r.id})">✏️</button>
         <button class="del" onclick="delRecv(${r.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقات المؤسسة هنا لتتابعها</div>';
+  window._recvCache=recv||[];
   // leak bar
   const budget=st?Number(st.monthly_leak_budget):1000;
   $('leakTxt').textContent=`${fmt(leakTotal)} ريال`;
@@ -392,11 +445,20 @@ async function loadMoney(){
   $('leakBar').style.width=pct+'%';
   $('leakBar').style.background=pct>=100?'var(--red)':'';
   // recent expenses (last 6)
-  $('expList').innerHTML=(exps||[]).slice(0,6).map(e=>`
-    <div class="item"><div><b>${e.category}</b><div class="meta">${e.spent_on}</div></div>
-      <span style="display:flex;gap:6px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
-      <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`).join('');
+  $('expList').innerHTML=exps.slice(0,6).map(e=>{
+    const c=e.ds_expense_categories||{};
+    return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${e.spent_on}</div></div>
+      <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
+      <button class="ico" onclick="editExp(${e.id})">✏️</button>
+      <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`;
+  }).join('');
 }
+function renderExpChips(){
+  $('expChips').innerHTML=expCats.length?expCats.map(c=>
+    `<span class="chip ${c.id===chosenExpCatId?'active':''}" onclick="expCat(${c.id})">${esc(c.icon)} ${esc(c.name)}</span>`
+  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِفها من ⚙️ الإعدادات</div>';
+}
+function expCat(id){chosenExpCatId=id;renderExpChips()}
 function debtCat(c){
   curDebtCat=c;
   ['personal','father','gov'].forEach(x=>$('dc-'+x).classList.toggle('active',x===c));
@@ -407,69 +469,153 @@ function renderDebts(){
   $('debtsList').innerHTML=list.length?list.map(d=>{
     const left=Math.max(0,d.amount-d.paid);
     const pct=d.amount>0?Math.min(100,d.paid/d.amount*100):0;
+    const pays=paymentsByDebt[d.id]||[];
+    const paysHtml=openDebtId===d.id?`
+      <div style="margin-top:8px">${pays.length?pays.map(p=>`
+        <div class="item" style="margin-top:6px"><div><b>${fmt(p.amount)}</b><div class="meta">${p.paid_on}${p.note?' · '+esc(p.note):''}</div></div>
+        <button class="del" onclick="delPayment(${p.id})">🗑️</button></div>`).join('')
+        :'<div class="meta" style="text-align:center;padding:6px">لا سدادات بعد</div>'}</div>`:'';
     return `<div class="item" style="display:block">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><b>${d.name}</b><div class="meta">${fmt(left)} متبقي من ${fmt(d.amount)}${d.note?' · '+d.note:''}</div></div>
-        <span style="display:flex;gap:6px">
+        <div><b>${esc(d.name)}</b><div class="meta">${fmt(left)} متبقي من ${fmt(d.amount)}${d.note?' · '+esc(d.note):''}</div></div>
+        <span style="display:flex;gap:2px;align-items:center">
           ${left>0?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="payDebt(${d.id})">سداد 💸</button>`:'<span style="color:var(--green);font-size:12px;font-weight:700">✅ مغلق</span>'}
+          <button class="ico" onclick="togglePays(${d.id})">📜</button>
+          <button class="ico" onclick="editDebt(${d.id})">✏️</button>
+          <button class="ico" onclick="archiveDebt(${d.id})">🗄️</button>
         </span>
       </div>
       <div class="bar"><div style="width:${pct}%"></div></div>
+      ${paysHtml}
     </div>`;
   }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا ديون في هذي الفئة 🎉</div>';
+}
+function togglePays(id){openDebtId=openDebtId===id?null:id;renderDebts()}
+async function delPayment(id){
+  if(!confirm('حذف هذا السداد؟'))return;
+  const{error}=await db.from('ds_payments').delete().eq('id',id);
+  if(fail('debtMsg',error))return;
+  loadMoney();
 }
 async function payDebt(id){
   const amt=prompt('كم سدّدت؟ (ريال)');
   if(!amt||isNaN(parseFloat(amt)))return;
-  await db.from('ds_payments').insert({debt_id:id,amount:parseFloat(amt)});
+  const{error}=await db.from('ds_payments').insert({debt_id:id,amount:parseFloat(amt),paid_on:todayStr()});
+  if(fail('debtMsg',error))return;
   loadMoney();
 }
-async function addDebt(){
-  const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value);
+function openDebtForm(){
+  const w=$('addDebtWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editDebtId=null;$('ndName').value='';$('ndAmt').value='';$('ndNote').value='';$('debtSaveBtn').textContent='حفظ الدين'}
+}
+function editDebt(id){
+  const d=debts.find(x=>x.id===id);if(!d)return;
+  editDebtId=id;
+  $('ndName').value=d.name;$('ndAmt').value=d.amount;$('ndNote').value=d.note||'';
+  debtCat(d.category);
+  $('debtSaveBtn').textContent='تحديث الدين';
+  $('addDebtWrap').classList.remove('hidden');
+}
+async function saveDebt(){
+  const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value),note=$('ndNote').value.trim()||null;
   if(!n||isNaN(a))return msg('debtMsg','أكمل الاسم والمبلغ','err');
-  await db.from('ds_debts').insert({name:n,amount:a,category:curDebtCat});
-  $('ndName').value='';$('ndAmt').value='';
+  if(busy)return;busy=true;
+  const q=editDebtId
+    ? db.from('ds_debts').update({name:n,amount:a,note,category:curDebtCat}).eq('id',editDebtId)
+    : db.from('ds_debts').insert({name:n,amount:a,note,category:curDebtCat});
+  const{error}=await q;
+  busy=false;
+  if(fail('debtMsg',error))return;
+  $('ndName').value='';$('ndAmt').value='';$('ndNote').value='';
   $('addDebtWrap').classList.add('hidden');
-  msg('debtMsg','أُضيف الدين ✅','ok');
+  msg('debtMsg',editDebtId?'حُدّث الدين ✅':'أُضيف الدين ✅','ok');
   loadMoney();
 }
-async function addRecv(){
+async function archiveDebt(id){
+  if(!confirm('أرشفة هذا الدين؟ يبقى محفوظاً في ⚙️ الإعدادات'))return;
+  const{error}=await db.from('ds_debts').update({active:false}).eq('id',id);
+  if(fail('debtMsg',error))return;
+  loadMoney();
+}
+function openRecvForm(){
+  const w=$('addRecvWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editRecvId=null;$('nrName').value='';$('nrAmt').value='';$('recvSaveBtn').textContent='حفظ المستحق'}
+}
+function editRecv(id){
+  const r=(window._recvCache||[]).find(x=>x.id===id);if(!r)return;
+  editRecvId=id;
+  $('nrName').value=r.name;$('nrAmt').value=r.amount;
+  $('recvSaveBtn').textContent='تحديث المستحق';
+  $('addRecvWrap').classList.remove('hidden');
+}
+async function saveRecv(){
   const n=$('nrName').value.trim(),a=parseFloat($('nrAmt').value);
-  if(!n||isNaN(a))return;
-  await db.from('ds_receivables').insert({name:n,amount:a});
+  if(!n||isNaN(a))return msg('recvMsg','أكمل الجهة والمبلغ','err');
+  if(busy)return;busy=true;
+  const q=editRecvId
+    ? db.from('ds_receivables').update({name:n,amount:a}).eq('id',editRecvId)
+    : db.from('ds_receivables').insert({name:n,amount:a});
+  const{error}=await q;
+  busy=false;
+  if(fail('recvMsg',error))return;
   $('nrName').value='';$('nrAmt').value='';
   $('addRecvWrap').classList.add('hidden');
   loadMoney();
 }
-async function markRecv(id){await db.from('ds_receivables').update({status:'received'}).eq('id',id);loadMoney()}
-async function delRecv(id){if(confirm('حذف هذا المستحق؟')){await db.from('ds_receivables').delete().eq('id',id);loadMoney()}}
-function expCat(el,c){
-  chosenExpCat=c;
-  document.querySelectorAll('#paneMoney .chip').forEach(x=>{if(x.id==='')x.classList.remove('active')});
-  document.querySelectorAll('#paneMoney .card:last-child .chip').forEach(x=>x.classList.remove('active'));
-  el.classList.add('active');
+async function markRecv(id){
+  const{error}=await db.from('ds_receivables').update({status:'received'}).eq('id',id);
+  if(fail('recvMsg',error))return;
+  loadMoney();
 }
-async function addExpense(){
+async function delRecv(id){
+  if(!confirm('حذف هذا المستحق؟'))return;
+  const{error}=await db.from('ds_receivables').delete().eq('id',id);
+  if(fail('recvMsg',error))return;
+  loadMoney();
+}
+function editExp(id){
+  const e=exps.find(x=>x.id===id);if(!e)return;
+  editExpId=id;
+  $('expAmt').value=e.amount;
+  chosenExpCatId=e.category_id;
+  renderExpChips();
+  $('expSaveBtn').textContent='تحديث';
+}
+async function saveExp(){
   const a=parseFloat($('expAmt').value);
   if(isNaN(a)||a<=0)return msg('expMsg','أدخل المبلغ','err');
-  await db.from('ds_expenses').insert({amount:a,category:chosenExpCat});
+  if(!chosenExpCatId)return msg('expMsg','أضِف فئة من ⚙️ الإعدادات أولاً','err');
+  if(busy)return;busy=true;
+  const q=editExpId
+    ? db.from('ds_expenses').update({amount:a,category_id:chosenExpCatId}).eq('id',editExpId)
+    : db.from('ds_expenses').insert({amount:a,category_id:chosenExpCatId,spent_on:todayStr()});
+  const{error}=await q;
+  busy=false;
+  if(fail('expMsg',error))return;
   $('expAmt').value='';
   loadMoney();
 }
-async function delExp(id){await db.from('ds_expenses').delete().eq('id',id);loadMoney()}
+async function delExp(id){
+  if(!confirm('حذف هذا المصروف؟'))return;
+  const{error}=await db.from('ds_expenses').delete().eq('id',id);
+  if(fail('expMsg',error))return;
+  loadMoney();
+}
 
 // ============ BODY ============
 async function loadBody(){
-  const from=new Date();from.setDate(from.getDate()-30);
+  const from=new Date();from.setDate(from.getDate()-59);
   const[{data:wo},{data:ws}]=await Promise.all([
-    db.from('ds_workouts').select('on_date').gte('on_date',from.toISOString().slice(0,10)).order('on_date'),
-    db.from('ds_weights').select('*').order('on_date').limit(60)
+    db.from('ds_workouts').select('on_date').gte('on_date',dstr(from)).order('on_date'),
+    db.from('ds_weights').select('*').order('on_date',{ascending:false}).limit(60)
   ]);
   const dates=new Set((wo||[]).map(w=>w.on_date));
   // week count (last 7 days)
-  let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(d.toISOString().slice(0,10)))wk++}
+  let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))wk++}
   // streak
-  let st=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(d.toISOString().slice(0,10)))st++;else if(i>0)break;else continue}
+  let st=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))st++;else if(i>0)break;else continue}
   $('bWeek').textContent=wk;
   $('bStreak').textContent=st;
   // gym button state
@@ -478,10 +624,10 @@ async function loadBody(){
   $('gymBtn').dataset.done=doneToday?'1':'0';
   // last 14 dots
   let dots='';
-  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${dates.has(d.toISOString().slice(0,10))?'on':''}"></div>`}
+  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${dates.has(dstr(d))?'on':''}"></div>`}
   $('last14').innerHTML=dots;
-  // weight
-  const weights=ws||[];
+  // weight (newest 60, shown oldest→newest)
+  const weights=(ws||[]).slice().reverse();
   $('bWeight').textContent=weights.length?Number(weights[weights.length-1].kg):'—';
   if(weightChartObj)weightChartObj.destroy();
   if(weights.length){
@@ -495,15 +641,17 @@ async function loadBody(){
   }
 }
 async function toggleWorkout(){
-  if($('gymBtn').dataset.done==='1')await db.from('ds_workouts').delete().eq('on_date',todayStr());
-  else await db.from('ds_workouts').insert({on_date:todayStr()});
+  let error;
+  if($('gymBtn').dataset.done==='1')({error}=await db.from('ds_workouts').delete().eq('on_date',todayStr()));
+  else ({error}=await db.from('ds_workouts').insert({on_date:todayStr()}));
+  if(fail('gymMsg',error))return;
   loadBody();
 }
 async function addWeight(){
   const k=parseFloat($('wKg').value);
   if(isNaN(k)||k<=0)return msg('wMsg','أدخل وزن صحيح','err');
   const{error}=await db.from('ds_weights').upsert({on_date:todayStr(),kg:k,user_id:me.id},{onConflict:'user_id,on_date'});
-  if(error)return msg('wMsg','خطأ في الحفظ','err');
+  if(fail('wMsg',error))return;
   $('wKg').value='';
   msg('wMsg','تم حفظ الوزن ⚖️','ok');
   loadBody();
@@ -511,10 +659,11 @@ async function addWeight(){
 
 // ============ HABITS ============
 async function loadHabits(){
-  const from=new Date();from.setDate(from.getDate()-13);
+  editHabId=null;$('habSaveBtn').textContent='حفظ العادة';
+  const from=new Date();from.setDate(from.getDate()-59);
   const[{data:hs},{data:logs}]=await Promise.all([
     db.from('ds_habits').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_habit_logs').select('habit_id,on_date').gte('on_date',from.toISOString().slice(0,10))
+    db.from('ds_habit_logs').select('habit_id,on_date').gte('on_date',dstr(from))
   ]);
   habits=hs||[];
   const byH={};(logs||[]).forEach(l=>{byH[l.habit_id]=byH[l.habit_id]||new Set();byH[l.habit_id].add(l.on_date)});
@@ -522,29 +671,159 @@ async function loadHabits(){
     const set=byH[h.id]||new Set();
     const doneToday=set.has(todayStr());
     let streak=0;
-    for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(set.has(d.toISOString().slice(0,10)))streak++;else if(i>0)break;else continue}
+    for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(set.has(dstr(d)))streak++;else if(i>0)break;else continue}
     let dots='';
-    for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${set.has(d.toISOString().slice(0,10))?'on':''}"></div>`}
+    for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${set.has(dstr(d))?'on':''}"></div>`}
     return `<div class="hab ${doneToday?'done':''}">
-      <div class="box" onclick="toggleHabit(${h.id},${doneToday},'habits')">${doneToday?'✓':h.icon}</div>
-      <div class="nm">${h.name}<div class="dots">${dots}</div></div>
+      <div class="box" onclick="toggleHabit(${h.id},${doneToday},'habits')">${doneToday?'✓':esc(h.icon)}</div>
+      <div class="nm">${esc(h.name)}<div class="dots">${dots}</div></div>
       <div class="streak">🔥 ${streak}</div>
+      <button class="ico" onclick="editHab(${h.id})">✏️</button>
       <button class="del" onclick="delHabit(${h.id})">✖</button>
     </div>`;
   }).join('')||'<div style="text-align:center;color:var(--muted);padding:10px">لا عادات — أضِف أول عادة</div>';
 }
-async function addHabit(){
+function openHabForm(){
+  const w=$('addHabWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editHabId=null;$('nhIcon').value='';$('nhName').value='';$('habSaveBtn').textContent='حفظ العادة'}
+}
+function editHab(id){
+  const h=habits.find(x=>x.id===id);if(!h)return;
+  editHabId=id;
+  $('nhIcon').value=h.icon||'';$('nhName').value=h.name;
+  $('habSaveBtn').textContent='تحديث العادة';
+  $('addHabWrap').classList.remove('hidden');
+}
+async function saveHab(){
   const n=$('nhName').value.trim(),ic=$('nhIcon').value.trim()||'⭐';
   if(!n)return msg('habMsg','اكتب اسم العادة','err');
-  await db.from('ds_habits').insert({name:n,icon:ic,sort_order:habits.length+1});
+  if(busy)return;busy=true;
+  const q=editHabId
+    ? db.from('ds_habits').update({name:n,icon:ic}).eq('id',editHabId)
+    : db.from('ds_habits').insert({name:n,icon:ic,sort_order:habits.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('habMsg',error))return;
   $('nhName').value='';$('nhIcon').value='';
   $('addHabWrap').classList.add('hidden');
   loadHabits();
 }
 async function delHabit(id){
-  if(!confirm('إيقاف هذي العادة؟ سجلها يبقى محفوظاً'))return;
-  await db.from('ds_habits').update({active:false}).eq('id',id);
+  if(!confirm('إيقاف هذي العادة؟ سجلها يبقى محفوظاً في ⚙️ الإعدادات'))return;
+  const{error}=await db.from('ds_habits').update({active:false}).eq('id',id);
+  if(fail('habMsg',error))return;
   loadHabits();
+}
+
+// ============ SETTINGS ============
+async function loadSettings(){
+  editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
+  const[{data:st},{data:cs},{data:ad},{data:ah}]=await Promise.all([
+    db.from('ds_settings').select('*').maybeSingle(),
+    db.from('ds_expense_categories').select('*').order('sort_order'),
+    db.from('ds_debts').select('*').eq('active',false).order('amount'),
+    db.from('ds_habits').select('*').eq('active',false).order('sort_order')
+  ]);
+  allCats=cs||[];
+  $('stBudget').value=st?Number(st.monthly_leak_budget):'';
+  $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
+  // categories manager
+  $('catList').innerHTML=allCats.length?allCats.map(c=>`
+    <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="editCat(${c.id})">✏️</button>
+        ${c.active
+          ?`<button class="ico" onclick="setCatActive(${c.id},false)">🗄️</button>`
+          :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
+        <button class="del" onclick="delCat(${c.id})">🗑️</button>
+      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
+  // archives
+  $('archDebts').innerHTML=(ad||[]).length?(ad||[]).map(d=>`
+    <div class="item dim"><div><b>${esc(d.name)}</b><div class="meta">${fmt(d.amount)} ريال</div></div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="restoreDebt(${d.id})">↩️</button>
+        <button class="del" onclick="hardDelDebt(${d.id})">🗑️</button>
+      </span></div>`).join(''):'<div class="meta" style="text-align:center;padding:6px">لا ديون مؤرشفة</div>';
+  $('archHabits').innerHTML=(ah||[]).length?(ah||[]).map(h=>`
+    <div class="item dim"><div><b>${esc(h.icon)} ${esc(h.name)}</b></div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="restoreHabit(${h.id})">↩️</button>
+        <button class="del" onclick="hardDelHabit(${h.id})">🗑️</button>
+      </span></div>`).join(''):'<div class="meta" style="text-align:center;padding:6px">لا عادات موقوفة</div>';
+}
+async function saveSettings(){
+  const b=parseFloat($('stBudget').value);
+  if(isNaN(b)||b<0)return msg('stMsg','أدخل حد مصاريف صحيح','err');
+  const tRaw=$('stTarget').value.trim();
+  const t=tRaw===''?null:parseFloat(tRaw);
+  if(t!==null&&(isNaN(t)||t<=0))return msg('stMsg','أدخل وزن مستهدف صحيح أو اتركه فارغاً','err');
+  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t},{onConflict:'user_id'});
+  if(fail('stMsg',error))return;
+  msg('stMsg','حُفظت الإعدادات ✅','ok');
+}
+function openCatForm(){
+  const w=$('addCatWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editCatId=null;$('ncIcon').value='';$('ncName').value='';$('catSaveBtn').textContent='حفظ الفئة'}
+}
+function editCat(id){
+  const c=allCats.find(x=>x.id===id);if(!c)return;
+  editCatId=id;
+  $('ncIcon').value=c.icon||'';$('ncName').value=c.name;
+  $('catSaveBtn').textContent='تحديث الفئة';
+  $('addCatWrap').classList.remove('hidden');
+}
+async function saveCat(){
+  const n=$('ncName').value.trim(),ic=$('ncIcon').value.trim()||'📦';
+  if(!n)return msg('catMsg','اكتب اسم الفئة','err');
+  if(busy)return;busy=true;
+  const q=editCatId
+    ? db.from('ds_expense_categories').update({name:n,icon:ic}).eq('id',editCatId)
+    : db.from('ds_expense_categories').insert({name:n,icon:ic,sort_order:allCats.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('catMsg',error))return;
+  $('ncName').value='';$('ncIcon').value='';
+  $('addCatWrap').classList.add('hidden');
+  loadSettings();
+}
+async function setCatActive(id,active){
+  const{error}=await db.from('ds_expense_categories').update({active}).eq('id',id);
+  if(fail('catMsg',error))return;
+  loadSettings();
+}
+async function delCat(id){
+  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
+  const{error}=await db.from('ds_expense_categories').delete().eq('id',id);
+  if(error){
+    if(error.code==='23503')msg('catMsg','الفئة مستخدمة في مصاريف مسجّلة — أرشِفها بدلاً من الحذف','err');
+    else fail('catMsg',error);
+    return;
+  }
+  loadSettings();
+}
+async function restoreDebt(id){
+  const{error}=await db.from('ds_debts').update({active:true}).eq('id',id);
+  if(fail('archMsg',error))return;
+  loadSettings();
+}
+async function hardDelDebt(id){
+  if(!confirm('حذف نهائي؟ سيُحذف الدين وكل سداداته ولا يمكن التراجع'))return;
+  const{error}=await db.from('ds_debts').delete().eq('id',id);
+  if(fail('archMsg',error))return;
+  loadSettings();
+}
+async function restoreHabit(id){
+  const{error}=await db.from('ds_habits').update({active:true}).eq('id',id);
+  if(fail('archMsg',error))return;
+  loadSettings();
+}
+async function hardDelHabit(id){
+  if(!confirm('حذف نهائي؟ سيُحذف سجل العادة كاملاً ولا يمكن التراجع'))return;
+  const{error}=await db.from('ds_habits').delete().eq('id',id);
+  if(fail('archMsg',error))return;
+  loadSettings();
 }
 
 // Enter keys + session restore
