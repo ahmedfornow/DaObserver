@@ -71,6 +71,11 @@
   .task.done .tbox{border-color:var(--em);background:rgba(111,217,166,.12)}
   .task.done .tt{text-decoration:line-through;color:var(--muted)}
   .task .tt{flex:1;font-size:14px}
+  .tbadge{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--gold);font-size:11px;margin-inline-start:6px;white-space:nowrap}
+  .task.late{border:1px solid rgba(229,96,79,.35);background:rgba(229,96,79,.06);border-radius:10px;padding-inline:8px;margin-top:6px}
+  .task.now{background:rgba(111,217,166,.05)}
+  .task.now .tbadge{color:var(--em);border-color:var(--em)}
+  input[type="date"],input[type="time"]{color-scheme:dark}
   .sec-h{font-size:14px;margin:18px 0 8px;color:var(--em);letter-spacing:.4px;font-weight:500;display:flex;align-items:center;gap:8px}
   .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
   .greet{font-size:13px;color:var(--muted);margin-bottom:4px}
@@ -121,6 +126,11 @@
     <div id="paneToday">
       <div class="card">
         <h2>📋 مهام اليوم <span style="color:var(--muted);font-size:12px" id="todayDate"></span></h2>
+        <div id="morningBrief" style="color:var(--muted);font-size:12px;margin:-8px 0 10px">—</div>
+        <div id="overdueWrap" class="hidden">
+          <div class="sec-h" style="color:var(--red)">⏳ متأخرة</div>
+          <div id="overdueList"></div>
+        </div>
         <div id="todayTasks"><div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div></div>
       </div>
       <div class="card">
@@ -136,6 +146,20 @@
         </div>
         <div id="tomorrowTasks"></div>
         <div class="msg" id="todayMsg"></div>
+      </div>
+      <div class="card">
+        <h2>⏰ القادم</h2>
+        <div id="upcomingList"><div style="color:var(--muted);font-size:11px;text-align:center;padding:8px">لا مهام مجدولة بعد</div></div>
+        <button class="ghost" onclick="openTaskForm()">＋ جدولة مهمة</button>
+        <div id="addTaskWrap" class="hidden">
+          <input type="text" id="tkTitle" placeholder="المهمة" style="margin-top:8px">
+          <div class="row2" style="margin-top:8px">
+            <input type="date" id="tkDate">
+            <input type="time" id="tkTime">
+          </div>
+          <button id="taskSaveBtn" onclick="saveTask()">جدولة</button>
+        </div>
+        <div class="msg" id="schedMsg"></div>
       </div>
     </div>
 
@@ -282,6 +306,8 @@ const dstr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${St
 const todayStr=()=>dstr(new Date());
 const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return dstr(d)};
 const curMonth=()=>todayStr().slice(0,7);
+const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'ص':'م'}`};
+const arDate=iso=>new Date(iso+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
 const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2200)};
 // F9: surface the REAL Supabase error, never fail silently
 const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
@@ -289,7 +315,7 @@ const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 
 let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], paymentsByDebt={};
 let curDebtCat='personal', chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
-let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null;
+let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, tasksCache=[];
 
 // ============ AUTH ============
 async function doLogin(){
@@ -331,25 +357,48 @@ function showTab(t){
 
 // ============ TODAY ============
 async function loadToday(){
-  const[{data:tt},{data:tm}]=await Promise.all([
-    db.from('ds_tasks').select('*').eq('for_date',todayStr()).order('sort_order'),
-    db.from('ds_tasks').select('*').eq('for_date',tomorrowStr()).order('sort_order')
+  editTaskId=null;$('taskSaveBtn').textContent='جدولة';
+  const t=todayStr(),tm=tomorrowStr();
+  const[{data:od},{data:tt},{data:fut}]=await Promise.all([
+    db.from('ds_tasks').select('*').lt('for_date',t).eq('done',false).order('for_date'),
+    db.from('ds_tasks').select('*').eq('for_date',t).order('due_time',{ascending:true,nullsFirst:false}).order('sort_order'),
+    db.from('ds_tasks').select('*').gt('for_date',t).order('for_date').order('due_time',{ascending:true,nullsFirst:false}).order('sort_order')
   ]);
-  renderTasks('todayTasks',tt||[],true);
-  renderTasks('tomorrowTasks',tm||[],false);
+  const overdue=od||[],today=tt||[],future=fut||[];
+  const tmList=future.filter(x=>x.for_date===tm),later=future.filter(x=>x.for_date>tm);
+  tasksCache=[...overdue,...today,...future];
+  // morning brief
+  const undone=today.filter(x=>!x.done),firstTimed=undone.find(x=>x.due_time);
+  $('morningBrief').textContent=undone.length
+    ?`${undone.length} ${undone.length===1?'مهمة':'مهام'} اليوم${firstTimed?` — أولها ${fmtTime(firstTimed.due_time)}`:''}`
+    :'لا مهام اليوم — يومك مفتوح ✨';
+  // overdue strip
+  $('overdueWrap').classList.toggle('hidden',!overdue.length);
+  $('overdueList').innerHTML=overdue.map(x=>taskRowHtml(x,{cls:'late',meta:arDate(x.for_date),extra:`<button class="ico" onclick="moveToToday(${x.id})" title="نقل لليوم">⤴️</button>`})).join('');
+  // today (timed first, "now" highlight when its time has arrived)
+  const nowT=new Date().toTimeString().slice(0,5);
+  $('todayTasks').innerHTML=today.length
+    ?today.map(x=>taskRowHtml(x,{cls:(!x.done&&x.due_time&&x.due_time.slice(0,5)<=nowT)?'now':''})).join('')
+    :'<div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div>';
+  // tomorrow (ritual list, badges appear if scheduled with a time)
+  $('tomorrowTasks').innerHTML=tmList.map(x=>taskRowHtml(x)).join('');
+  // upcoming: beyond tomorrow, grouped by date
+  if(later.length){
+    let html='',cur='';
+    later.forEach(x=>{if(x.for_date!==cur){cur=x.for_date;html+=`<div class="sec-h">${arDate(x.for_date)}</div>`}html+=taskRowHtml(x)});
+    $('upcomingList').innerHTML=html;
+  }else $('upcomingList').innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:8px">لا مهام مجدولة بعد</div>';
   loadQuickHabits();
 }
-function renderTasks(elId,list,isToday){
-  if(!list.length){
-    $(elId).innerHTML=isToday?'<div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div>':'';
-    return;
-  }
-  $(elId).innerHTML=list.map(t=>`
-    <div class="task ${t.done?'done':''}">
-      <div class="tbox" onclick="toggleTask(${t.id},${!t.done})">${t.done?'✓':''}</div>
-      <div class="tt">${esc(t.title)}</div>
-      <button class="del" onclick="delTask(${t.id})">🗑️</button>
-    </div>`).join('');
+function taskRowHtml(t,{cls='',meta='',extra=''}={}){
+  const badge=t.due_time?`<span class="tbadge">${fmtTime(t.due_time)}</span>`:'';
+  return `<div class="task ${t.done?'done':''} ${cls}">
+    <div class="tbox" onclick="toggleTask(${t.id},${!t.done})">${t.done?'✓':''}</div>
+    <div class="tt">${esc(t.title)}${badge}${meta?`<div style="color:var(--muted);font-size:11px;margin-top:2px">${meta}</div>`:''}</div>
+    ${extra}
+    <button class="ico" onclick="editTask(${t.id})">✏️</button>
+    <button class="del" onclick="delTask(${t.id})">🗑️</button>
+  </div>`;
 }
 async function addTask(){
   const t=$('newTask').value.trim();
@@ -359,6 +408,38 @@ async function addTask(){
   busy=false;
   if(fail('todayMsg',error))return;
   $('newTask').value='';
+  loadToday();
+}
+function openTaskForm(){
+  const w=$('addTaskWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editTaskId=null;$('tkTitle').value='';$('tkDate').value=tomorrowStr();$('tkTime').value='';$('taskSaveBtn').textContent='جدولة'}
+}
+function editTask(id){
+  const t=tasksCache.find(x=>x.id===id);if(!t)return;
+  editTaskId=id;
+  $('tkTitle').value=t.title;$('tkDate').value=t.for_date;$('tkTime').value=t.due_time?t.due_time.slice(0,5):'';
+  $('taskSaveBtn').textContent='تحديث المهمة';
+  $('addTaskWrap').classList.remove('hidden');
+}
+async function saveTask(){
+  const ti=$('tkTitle').value.trim(),d=$('tkDate').value,tv=$('tkTime').value;
+  if(!ti||!d)return msg('schedMsg','أكمل المهمة والتاريخ','err');
+  if(busy)return;busy=true;
+  const payload={title:ti,for_date:d,due_time:tv||null};
+  const q=editTaskId
+    ? db.from('ds_tasks').update(payload).eq('id',editTaskId)
+    : db.from('ds_tasks').insert(payload);
+  const{error}=await q;
+  busy=false;
+  if(fail('schedMsg',error))return;
+  $('tkTitle').value='';$('tkTime').value='';
+  $('addTaskWrap').classList.add('hidden');
+  loadToday();
+}
+async function moveToToday(id){
+  const{error}=await db.from('ds_tasks').update({for_date:todayStr()}).eq('id',id);
+  if(fail('todayMsg',error))return;
   loadToday();
 }
 async function toggleTask(id,done){
@@ -416,19 +497,16 @@ async function loadMoney(){
   (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
   Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
   debts.forEach(d=>d.paid=(paymentsByDebt[d.id]||[]).reduce((a,p)=>a+Number(p.amount),0));
-  // counters: personal+gov remaining (his own burden)
   const ownLeft=debts.filter(d=>d.category!=='father').reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
   const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
   const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
   $('mDebtLeft').textContent=fmt(ownLeft);
   $('mRecv').textContent=fmt(recvPend);
   $('mLeak').textContent=fmt(leakTotal);
-  // category chips (DB-driven)
   if(!expCats.find(c=>c.id===chosenExpCatId))
     chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
   renderExpChips();
   renderDebts();
-  // receivables
   $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
     <div class="item"><div><b>${esc(r.name)}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
       <span style="display:flex;gap:4px;align-items:center">
@@ -437,14 +515,12 @@ async function loadMoney(){
         <button class="del" onclick="delRecv(${r.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقات المؤسسة هنا لتتابعها</div>';
   window._recvCache=recv||[];
-  // leak bar
   const budget=st?Number(st.monthly_leak_budget):1000;
   $('leakTxt').textContent=`${fmt(leakTotal)} ريال`;
   $('leakBudgetTxt').textContent=`الحد: ${fmt(budget)}`;
   const pct=Math.min(100,budget>0?leakTotal/budget*100:0);
   $('leakBar').style.width=pct+'%';
   $('leakBar').style.background=pct>=100?'var(--red)':'';
-  // recent expenses (last 6)
   $('expList').innerHTML=exps.slice(0,6).map(e=>{
     const c=e.ds_expense_categories||{};
     return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${e.spent_on}</div></div>
@@ -521,7 +597,8 @@ async function saveDebt(){
   const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value),note=$('ndNote').value.trim()||null;
   if(!n||isNaN(a))return msg('debtMsg','أكمل الاسم والمبلغ','err');
   if(busy)return;busy=true;
-  const q=editDebtId
+  const wasEdit=!!editDebtId;
+  const q=wasEdit
     ? db.from('ds_debts').update({name:n,amount:a,note,category:curDebtCat}).eq('id',editDebtId)
     : db.from('ds_debts').insert({name:n,amount:a,note,category:curDebtCat});
   const{error}=await q;
@@ -529,7 +606,7 @@ async function saveDebt(){
   if(fail('debtMsg',error))return;
   $('ndName').value='';$('ndAmt').value='';$('ndNote').value='';
   $('addDebtWrap').classList.add('hidden');
-  msg('debtMsg',editDebtId?'حُدّث الدين ✅':'أُضيف الدين ✅','ok');
+  msg('debtMsg',wasEdit?'حُدّث الدين ✅':'أُضيف الدين ✅','ok');
   loadMoney();
 }
 async function archiveDebt(id){
@@ -612,21 +689,16 @@ async function loadBody(){
     db.from('ds_weights').select('*').order('on_date',{ascending:false}).limit(60)
   ]);
   const dates=new Set((wo||[]).map(w=>w.on_date));
-  // week count (last 7 days)
   let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))wk++}
-  // streak
   let st=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))st++;else if(i>0)break;else continue}
   $('bWeek').textContent=wk;
   $('bStreak').textContent=st;
-  // gym button state
   const doneToday=dates.has(todayStr());
   $('gymBtn').textContent=doneToday?'✅ تمرين اليوم موثّق — اضغط للتراجع':'سجّلت تمريني اليوم ✅';
   $('gymBtn').dataset.done=doneToday?'1':'0';
-  // last 14 dots
   let dots='';
   for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${dates.has(dstr(d))?'on':''}"></div>`}
   $('last14').innerHTML=dots;
-  // weight (newest 60, shown oldest→newest)
   const weights=(ws||[]).slice().reverse();
   $('bWeight').textContent=weights.length?Number(weights[weights.length-1].kg):'—';
   if(weightChartObj)weightChartObj.destroy();
@@ -728,7 +800,6 @@ async function loadSettings(){
   allCats=cs||[];
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
   $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
-  // categories manager
   $('catList').innerHTML=allCats.length?allCats.map(c=>`
     <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -738,19 +809,18 @@ async function loadSettings(){
           :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
         <button class="del" onclick="delCat(${c.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
-  // archives
   $('archDebts').innerHTML=(ad||[]).length?(ad||[]).map(d=>`
     <div class="item dim"><div><b>${esc(d.name)}</b><div class="meta">${fmt(d.amount)} ريال</div></div>
       <span style="display:flex;gap:2px;align-items:center">
         <button class="ico" onclick="restoreDebt(${d.id})">↩️</button>
         <button class="del" onclick="hardDelDebt(${d.id})">🗑️</button>
-      </span></div>`).join(''):'<div class="meta" style="text-align:center;padding:6px">لا ديون مؤرشفة</div>';
+      </span></div>`).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:6px">لا ديون مؤرشفة</div>';
   $('archHabits').innerHTML=(ah||[]).length?(ah||[]).map(h=>`
     <div class="item dim"><div><b>${esc(h.icon)} ${esc(h.name)}</b></div>
       <span style="display:flex;gap:2px;align-items:center">
         <button class="ico" onclick="restoreHabit(${h.id})">↩️</button>
         <button class="del" onclick="hardDelHabit(${h.id})">🗑️</button>
-      </span></div>`).join(''):'<div class="meta" style="text-align:center;padding:6px">لا عادات موقوفة</div>';
+      </span></div>`).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:6px">لا عادات موقوفة</div>';
 }
 async function saveSettings(){
   const b=parseFloat($('stBudget').value);
