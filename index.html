@@ -41,8 +41,8 @@
   .msg.err{display:block;background:rgba(229,96,79,.1);color:var(--red);border:1px solid rgba(229,96,79,.28)}
   .msg.ok{display:block;background:rgba(61,220,151,.08);color:var(--green);border:1px solid rgba(61,220,151,.25)}
   .hidden{display:none!important}
-  .tabs{display:flex;gap:6px;margin-bottom:14px}
-  .tab{flex:1;padding:11px 2px;text-align:center;border-radius:11px;background:var(--card);border:1px solid var(--line-soft);color:var(--muted);font-size:12px;cursor:pointer;transition:all .13s}
+  .tabs{display:flex;gap:5px;margin-bottom:14px}
+  .tab{flex:1;padding:10px 1px;text-align:center;border-radius:11px;background:var(--card);border:1px solid var(--line-soft);color:var(--muted);font-size:11px;cursor:pointer;transition:all .13s}
   .tab.active{background:rgba(111,217,166,.1);border-color:var(--em);color:var(--em);font-weight:700}
   .counter{display:flex;justify-content:space-around;background:linear-gradient(180deg,#18231d,#141d18);border:1px solid var(--line-soft);border-radius:13px;padding:14px 8px;margin-bottom:14px}
   .counter div{text-align:center;flex:1}
@@ -76,6 +76,10 @@
   .task.now{background:rgba(111,217,166,.05)}
   .task.now .tbadge{color:var(--em);border-color:var(--em)}
   input[type="date"],input[type="time"]{color-scheme:dark}
+  .lbl-dot{display:inline-block;width:10px;height:10px;border-radius:99px;margin-inline-end:6px;vertical-align:middle}
+  .cchip{display:inline-block;width:26px;height:26px;border-radius:99px;margin:4px 3px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle}
+  .cchip.active{border-color:var(--text)}
+  textarea{font-family:inherit;line-height:1.8}
   .sec-h{font-size:14px;margin:18px 0 8px;color:var(--em);letter-spacing:.4px;font-weight:500;display:flex;align-items:center;gap:8px}
   .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
   .greet{font-size:13px;color:var(--muted);margin-bottom:4px}
@@ -120,6 +124,7 @@
       <div class="tab" id="tabMoney" onclick="showTab('money')">💰 المال</div>
       <div class="tab" id="tabBody" onclick="showTab('body')">💪 الجسم</div>
       <div class="tab" id="tabHabits" onclick="showTab('habits')">🔥 العادات</div>
+      <div class="tab" id="tabNotes" onclick="showTab('notes')">📝 العصف</div>
     </div>
 
     <!-- ============ TODAY ============ -->
@@ -255,6 +260,49 @@
       </div>
     </div>
 
+    <!-- ============ العصف (NOTES) ============ -->
+    <div id="paneNotes" class="hidden">
+      <div id="nvFolders">
+        <div class="card">
+          <h2>📝 العصف</h2>
+          <input type="text" id="noteSearch" placeholder="🔎 بحث في كل الملاحظات..." oninput="searchNotes()">
+          <div id="searchResults"></div>
+          <div id="foldersList" style="margin-top:6px"></div>
+          <button class="ghost" onclick="openFolderForm()">＋ مجلد جديد</button>
+          <div id="addFolderWrap" class="hidden">
+            <div class="row2"><input type="text" id="nfIcon" placeholder="📁" style="width:70px;flex:none;text-align:center"><input type="text" id="nfName" placeholder="اسم المجلد"></div>
+            <button id="folderSaveBtn" onclick="saveFolder()">حفظ المجلد</button>
+          </div>
+          <div class="msg" id="folderMsg"></div>
+        </div>
+      </div>
+      <div id="nvNotes" class="hidden">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <button class="ico" style="font-size:18px;padding:4px 8px" onclick="notesBack('nvFolders')">→</button>
+            <h2 style="margin:0;flex:1" id="nvFolderName">—</h2>
+          </div>
+          <div id="labelChips"></div>
+          <div id="notesList"></div>
+          <button onclick="newNote()">＋ ملاحظة جديدة</button>
+          <div class="msg" id="notesMsg"></div>
+        </div>
+      </div>
+      <div id="nvEditor" class="hidden">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <button class="ico" style="font-size:18px;padding:4px 8px" onclick="notesBack('nvNotes')">→</button>
+            <span id="saveState" style="font-size:11px;color:var(--muted);flex:1;text-align:left">—</span>
+            <button class="ico" id="pinBtn" onclick="togglePin()">📌</button>
+            <button class="del" style="font-size:14px" onclick="delNote()">🗑️</button>
+          </div>
+          <input type="text" id="edTitle" placeholder="العنوان" oninput="noteDirty()" style="font-weight:700">
+          <div id="edLabels" style="margin-top:8px"></div>
+          <textarea id="edBody" placeholder="اكتب هنا..." oninput="noteDirty()" style="margin-top:8px;min-height:46vh;resize:vertical"></textarea>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ SETTINGS ============ -->
     <div id="paneSettings" class="hidden">
       <div class="card">
@@ -276,6 +324,18 @@
           <button id="catSaveBtn" onclick="saveCat()">حفظ الفئة</button>
         </div>
         <div class="msg" id="catMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>🏷️ فئات الملاحظات</h2>
+        <div id="labelList"></div>
+        <button class="ghost" onclick="openLabelForm()">＋ فئة جديدة</button>
+        <div id="addLabelWrap" class="hidden">
+          <input type="text" id="nlName" placeholder="اسم الفئة">
+          <div id="nlColors" style="margin-top:8px"></div>
+          <button id="labelSaveBtn" onclick="saveLabel()">حفظ الفئة</button>
+        </div>
+        <div class="msg" id="labelMsg"></div>
       </div>
 
       <div class="card">
@@ -301,7 +361,6 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// F8: local-time dates (was toISOString = UTC; shifted everything between 00:00–03:00 KSA)
 const dstr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const todayStr=()=>dstr(new Date());
 const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return dstr(d)};
@@ -309,13 +368,15 @@ const curMonth=()=>todayStr().slice(0,7);
 const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'ص':'م'}`};
 const arDate=iso=>new Date(iso+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
 const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2200)};
-// F9: surface the REAL Supabase error, never fail silently
 const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
 const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
+const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
 
 let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], paymentsByDebt={};
 let curDebtCat='personal', chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
 let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, tasksCache=[];
+let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
+let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
 
 // ============ AUTH ============
 async function doLogin(){
@@ -342,16 +403,18 @@ async function boot(){
 async function doLogout(){await db.auth.signOut();me=null;$('app').classList.add('hidden');$('loginCard').classList.remove('hidden')}
 
 function showTab(t){
-  ['Today','Money','Body','Habits'].forEach(x=>{
+  flushNoteSave();
+  ['Today','Money','Body','Habits','Notes'].forEach(x=>{
     $('tab'+x).classList.toggle('active',x.toLowerCase()===t);
   });
-  ['Today','Money','Body','Habits','Settings'].forEach(x=>{
+  ['Today','Money','Body','Habits','Notes','Settings'].forEach(x=>{
     $('pane'+x).classList.toggle('hidden',x.toLowerCase()!==t);
   });
   if(t==='today')loadToday();
   if(t==='money')loadMoney();
   if(t==='body')loadBody();
   if(t==='habits')loadHabits();
+  if(t==='notes')loadNotes();
   if(t==='settings')loadSettings();
 }
 
@@ -367,22 +430,17 @@ async function loadToday(){
   const overdue=od||[],today=tt||[],future=fut||[];
   const tmList=future.filter(x=>x.for_date===tm),later=future.filter(x=>x.for_date>tm);
   tasksCache=[...overdue,...today,...future];
-  // morning brief
   const undone=today.filter(x=>!x.done),firstTimed=undone.find(x=>x.due_time);
   $('morningBrief').textContent=undone.length
     ?`${undone.length} ${undone.length===1?'مهمة':'مهام'} اليوم${firstTimed?` — أولها ${fmtTime(firstTimed.due_time)}`:''}`
     :'لا مهام اليوم — يومك مفتوح ✨';
-  // overdue strip
   $('overdueWrap').classList.toggle('hidden',!overdue.length);
   $('overdueList').innerHTML=overdue.map(x=>taskRowHtml(x,{cls:'late',meta:arDate(x.for_date),extra:`<button class="ico" onclick="moveToToday(${x.id})" title="نقل لليوم">⤴️</button>`})).join('');
-  // today (timed first, "now" highlight when its time has arrived)
   const nowT=new Date().toTimeString().slice(0,5);
   $('todayTasks').innerHTML=today.length
     ?today.map(x=>taskRowHtml(x,{cls:(!x.done&&x.due_time&&x.due_time.slice(0,5)<=nowT)?'now':''})).join('')
     :'<div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div>';
-  // tomorrow (ritual list, badges appear if scheduled with a time)
   $('tomorrowTasks').innerHTML=tmList.map(x=>taskRowHtml(x)).join('');
-  // upcoming: beyond tomorrow, grouped by date
   if(later.length){
     let html='',cur='';
     later.forEach(x=>{if(x.for_date!==cur){cur=x.for_date;html+=`<div class="sec-h">${arDate(x.for_date)}</div>`}html+=taskRowHtml(x)});
@@ -788,16 +846,189 @@ async function delHabit(id){
   loadHabits();
 }
 
+// ============ العصف (NOTES) ============
+function showNotesView(v){
+  ['nvFolders','nvNotes','nvEditor'].forEach(x=>$(x).classList.add('hidden'));
+  $(v).classList.remove('hidden');
+}
+async function loadNotes(){
+  editFolderId=null;$('folderSaveBtn').textContent='حفظ المجلد';
+  $('noteSearch').value='';$('searchResults').innerHTML='';$('foldersList').style.display='';
+  const[{data:f},{data:n},{data:l}]=await Promise.all([
+    db.from('ds_note_folders').select('*').order('sort_order'),
+    db.from('ds_notes').select('*').order('updated_at',{ascending:false}),
+    db.from('ds_note_labels').select('*').order('sort_order')
+  ]);
+  noteFolders=f||[];allNotes=n||[];noteLabels=l||[];
+  renderFolders();
+  showNotesView('nvFolders');
+}
+function renderFolders(){
+  $('foldersList').innerHTML=noteFolders.length?noteFolders.map(f=>{
+    const cnt=allNotes.filter(x=>x.folder_id===f.id).length;
+    return `<div class="item" style="cursor:pointer" onclick="openFolder(${f.id})">
+      <div><b>${esc(f.icon)} ${esc(f.name)}</b><div class="meta">${cnt} ملاحظة</div></div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="event.stopPropagation();editFolder(${f.id})">✏️</button>
+        <button class="del" onclick="event.stopPropagation();delFolder(${f.id})">🗑️</button>
+      </span></div>`;
+  }).join(''):'<div style="text-align:center;color:var(--muted);padding:12px;font-size:12.5px">لا مجلدات — أنشئ أول مجلد لعصفك الذهني</div>';
+}
+function openFolderForm(){
+  const w=$('addFolderWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editFolderId=null;$('nfIcon').value='';$('nfName').value='';$('folderSaveBtn').textContent='حفظ المجلد'}
+}
+function editFolder(id){
+  const f=noteFolders.find(x=>x.id===id);if(!f)return;
+  editFolderId=id;
+  $('nfIcon').value=f.icon;$('nfName').value=f.name;
+  $('folderSaveBtn').textContent='تحديث المجلد';
+  $('addFolderWrap').classList.remove('hidden');
+}
+async function saveFolder(){
+  const n=$('nfName').value.trim(),ic=$('nfIcon').value.trim()||'📁';
+  if(!n)return msg('folderMsg','اكتب اسم المجلد','err');
+  if(busy)return;busy=true;
+  const q=editFolderId
+    ? db.from('ds_note_folders').update({name:n,icon:ic}).eq('id',editFolderId)
+    : db.from('ds_note_folders').insert({name:n,icon:ic,sort_order:noteFolders.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('folderMsg',error))return;
+  $('nfName').value='';$('nfIcon').value='';
+  $('addFolderWrap').classList.add('hidden');
+  loadNotes();
+}
+async function delFolder(id){
+  const cnt=allNotes.filter(x=>x.folder_id===id).length;
+  if(!confirm(`حذف المجلد وبداخله ${cnt} ملاحظة؟ لا تراجع`))return;
+  const{error}=await db.from('ds_note_folders').delete().eq('id',id);
+  if(fail('folderMsg',error))return;
+  loadNotes();
+}
+function openFolder(id){
+  curFolder=noteFolders.find(x=>x.id===id);if(!curFolder)return;
+  curLabelFilter=null;
+  $('nvFolderName').textContent=`${curFolder.icon} ${curFolder.name}`;
+  renderNotesList();
+  showNotesView('nvNotes');
+}
+function labelById(id){return noteLabels.find(l=>l.id===id)}
+function renderNotesList(){
+  $('labelChips').innerHTML=noteLabels.length?[
+    `<span class="chip ${curLabelFilter===null?'active':''}" onclick="filterLabel(null)">الكل</span>`,
+    ...noteLabels.map(l=>`<span class="chip ${curLabelFilter===l.id?'active':''}" onclick="filterLabel(${l.id})"><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</span>`)
+  ].join(''):'';
+  let list=allNotes.filter(x=>x.folder_id===curFolder.id);
+  if(curLabelFilter!==null)list=list.filter(x=>x.label_id===curLabelFilter);
+  list=list.slice().sort((a,b)=>(b.pinned-a.pinned)||b.updated_at.localeCompare(a.updated_at));
+  $('notesList').innerHTML=list.length?list.map(n=>{
+    const l=labelById(n.label_id);
+    const preview=(n.body||'').split('\n')[0].slice(0,60);
+    return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
+      <div style="min-width:0"><b>${n.pinned?'📌 ':''}${l?`<span class="lbl-dot" style="background:${esc(l.color)}"></span>`:''}${esc(n.title)||'بدون عنوان'}</b>
+      <div class="meta">${preview?esc(preview)+' · ':''}${new Date(n.updated_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
+    </div>`;
+  }).join(''):'<div style="text-align:center;color:var(--muted);padding:12px;font-size:12.5px">لا ملاحظات هنا بعد</div>';
+}
+function filterLabel(id){curLabelFilter=id;renderNotesList()}
+async function newNote(){
+  if(busy)return;busy=true;
+  const{data,error}=await db.from('ds_notes').insert({folder_id:curFolder.id}).select().single();
+  busy=false;
+  if(fail('notesMsg',error))return;
+  allNotes.unshift(data);
+  openNote(data.id);
+}
+function openNote(id){
+  const n=allNotes.find(x=>x.id===id);if(!n)return;
+  if(!curFolder||curFolder.id!==n.folder_id)curFolder=noteFolders.find(f=>f.id===n.folder_id);
+  curNote=n;
+  $('edTitle').value=n.title;$('edBody').value=n.body;
+  renderEdLabels();
+  $('pinBtn').style.color=n.pinned?'var(--gold)':'var(--muted)';
+  $('saveState').textContent='محفوظ ✓';$('saveState').style.color='var(--muted)';
+  showNotesView('nvEditor');
+}
+function renderEdLabels(){
+  $('edLabels').innerHTML=noteLabels.map(l=>
+    `<span class="chip ${curNote.label_id===l.id?'active':''}" onclick="setNoteLabel(${l.id})"><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</span>`
+  ).join('')+(noteLabels.length?`<span class="chip ${curNote.label_id===null?'active':''}" onclick="setNoteLabel(null)">بدون</span>`:'');
+}
+async function setNoteLabel(id){
+  if(!curNote)return;
+  const{error}=await db.from('ds_notes').update({label_id:id}).eq('id',curNote.id);
+  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
+  curNote.label_id=id;renderEdLabels();
+}
+function noteDirty(){
+  $('saveState').textContent='...';$('saveState').style.color='var(--muted)';
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(doSaveNote,900);
+}
+async function doSaveNote(){
+  if(!curNote)return;
+  clearTimeout(saveTimer);saveTimer=null;
+  const payload={title:$('edTitle').value,body:$('edBody').value,updated_at:new Date().toISOString()};
+  const{error}=await db.from('ds_notes').update(payload).eq('id',curNote.id);
+  if(error){$('saveState').textContent='⚠️ لم يُحفظ: '+error.message;$('saveState').style.color='var(--red)';return}
+  Object.assign(curNote,payload);
+  $('saveState').textContent='محفوظ ✓';$('saveState').style.color='var(--muted)';
+}
+function flushNoteSave(){if(saveTimer)doSaveNote()}
+async function togglePin(){
+  if(!curNote)return;
+  const p=!curNote.pinned;
+  const{error}=await db.from('ds_notes').update({pinned:p}).eq('id',curNote.id);
+  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
+  curNote.pinned=p;
+  $('pinBtn').style.color=p?'var(--gold)':'var(--muted)';
+}
+async function delNote(){
+  if(!curNote)return;
+  if(!confirm('حذف هذه الملاحظة نهائياً؟'))return;
+  const{error}=await db.from('ds_notes').delete().eq('id',curNote.id);
+  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
+  allNotes=allNotes.filter(x=>x.id!==curNote.id);
+  curNote=null;
+  renderNotesList();showNotesView('nvNotes');
+}
+async function notesBack(to){
+  flushNoteSave();
+  if(to==='nvNotes'&&curNote&&!$('edTitle').value.trim()&&!$('edBody').value.trim()){
+    await db.from('ds_notes').delete().eq('id',curNote.id);
+    allNotes=allNotes.filter(x=>x.id!==curNote.id);
+  }
+  curNote=null;
+  if(to==='nvNotes'){renderNotesList();showNotesView('nvNotes')}
+  else{renderFolders();showNotesView('nvFolders')}
+}
+function searchNotes(){
+  const q=$('noteSearch').value.trim().toLowerCase();
+  if(!q){$('searchResults').innerHTML='';$('foldersList').style.display='';return}
+  $('foldersList').style.display='none';
+  const hits=allNotes.filter(n=>(n.title||'').toLowerCase().includes(q)||(n.body||'').toLowerCase().includes(q)).slice(0,20);
+  $('searchResults').innerHTML=hits.length?hits.map(n=>{
+    const f=noteFolders.find(x=>x.id===n.folder_id);
+    return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
+      <div><b>${esc(n.title)||'بدون عنوان'}</b><div class="meta">${f?esc(f.icon+' '+f.name):''}</div></div>
+    </div>`;
+  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12px">لا نتائج</div>';
+}
+
 // ============ SETTINGS ============
 async function loadSettings(){
   editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
-  const[{data:st},{data:cs},{data:ad},{data:ah}]=await Promise.all([
+  editLabelId=null;$('labelSaveBtn').textContent='حفظ الفئة';
+  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls}]=await Promise.all([
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').order('sort_order'),
     db.from('ds_debts').select('*').eq('active',false).order('amount'),
-    db.from('ds_habits').select('*').eq('active',false).order('sort_order')
+    db.from('ds_habits').select('*').eq('active',false).order('sort_order'),
+    db.from('ds_note_labels').select('*').order('sort_order')
   ]);
-  allCats=cs||[];
+  allCats=cs||[];noteLabels=ls||[];
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
   $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
   $('catList').innerHTML=allCats.length?allCats.map(c=>`
@@ -809,6 +1040,12 @@ async function loadSettings(){
           :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
         <button class="del" onclick="delCat(${c.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
+  $('labelList').innerHTML=noteLabels.length?noteLabels.map(l=>`
+    <div class="item"><div><b><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</b></div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="editLabel(${l.id})">✏️</button>
+        <button class="del" onclick="delLabel(${l.id})">🗑️</button>
+      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — تُستخدم لتلوين وتجميع ملاحظات العصف</div>';
   $('archDebts').innerHTML=(ad||[]).length?(ad||[]).map(d=>`
     <div class="item dim"><div><b>${esc(d.name)}</b><div class="meta">${fmt(d.amount)} ريال</div></div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -871,6 +1108,43 @@ async function delCat(id){
     else fail('catMsg',error);
     return;
   }
+  loadSettings();
+}
+function renderColorChips(){
+  $('nlColors').innerHTML=LABEL_COLORS.map(c=>
+    `<span class="cchip ${chosenLabelColor===c?'active':''}" style="background:${c}" onclick="pickLabelColor('${c}')"></span>`
+  ).join('');
+}
+function pickLabelColor(c){chosenLabelColor=c;renderColorChips()}
+function openLabelForm(){
+  const w=$('addLabelWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editLabelId=null;$('nlName').value='';chosenLabelColor=LABEL_COLORS[0];renderColorChips();$('labelSaveBtn').textContent='حفظ الفئة'}
+}
+function editLabel(id){
+  const l=noteLabels.find(x=>x.id===id);if(!l)return;
+  editLabelId=id;$('nlName').value=l.name;chosenLabelColor=l.color;renderColorChips();
+  $('labelSaveBtn').textContent='تحديث الفئة';
+  $('addLabelWrap').classList.remove('hidden');
+}
+async function saveLabel(){
+  const n=$('nlName').value.trim();
+  if(!n)return msg('labelMsg','اكتب اسم الفئة','err');
+  if(busy)return;busy=true;
+  const q=editLabelId
+    ? db.from('ds_note_labels').update({name:n,color:chosenLabelColor}).eq('id',editLabelId)
+    : db.from('ds_note_labels').insert({name:n,color:chosenLabelColor,sort_order:noteLabels.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('labelMsg',error))return;
+  $('nlName').value='';
+  $('addLabelWrap').classList.add('hidden');
+  loadSettings();
+}
+async function delLabel(id){
+  if(!confirm('حذف هذه الفئة؟ الملاحظات تبقى بدون فئة'))return;
+  const{error}=await db.from('ds_note_labels').delete().eq('id',id);
+  if(fail('labelMsg',error))return;
   loadSettings();
 }
 async function restoreDebt(id){
