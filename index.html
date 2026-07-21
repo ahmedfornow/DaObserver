@@ -9,6 +9,7 @@
 <title>DaObserver | Your Life Observer</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
   :root {
@@ -40,6 +41,7 @@
   input,select,textarea{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:16px;text-align:right;transition:border-color .15s}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--em)}
   :focus-visible{outline:2px solid var(--em);outline-offset:2px}
+  input[type="file"]{padding:10px;font-size:13px}
   button{width:100%;padding:14px;margin-top:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--em-hi) 0%,var(--em) 45%,var(--em-lo) 100%);color:#08120c;font-size:15px;font-weight:700;letter-spacing:.4px;cursor:pointer;box-shadow:0 6px 18px rgba(111,217,166,.13);transition:transform .12s}
   button:active{transform:translateY(1px)}
   button:disabled{opacity:.45;cursor:wait}
@@ -251,6 +253,44 @@
         <div class="chart-card"><canvas id="weightChart" height="180"></canvas></div>
         <div class="msg" id="wMsg"></div>
       </div>
+
+      <div class="card">
+        <h2>📥 استيراد البيانات</h2>
+        <label>Lyfta — تمارين (CSV)</label>
+        <input type="file" id="fileLyfta" accept=".csv,text/csv" onchange="importLyfta(this)">
+        <label>MyFitnessPal — تغذية (CSV)</label>
+        <input type="file" id="fileMFP" accept=".csv,text/csv" onchange="importMFP(this)">
+        <div class="msg" id="impMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>📊 تحليل التدريب</h2>
+        <div id="trainEmpty" style="text-align:center;color:var(--muted);font-size:12.5px;padding:8px">استورد ملف Lyfta ليظهر التحليل</div>
+        <div id="trainWrap" class="hidden">
+          <div id="bwChips" style="margin-bottom:4px">
+            <span class="chip active" onclick="setBodyWin(56,this)">٨ أسابيع</span>
+            <span class="chip" onclick="setBodyWin(84,this)">١٢ أسبوع</span>
+            <span class="chip" onclick="setBodyWin(0,this)">كل البيانات</span>
+          </div>
+          <div class="sec-h">الحجم الأسبوعي (كجم)</div>
+          <div class="chart-card"><canvas id="volChart" height="170"></canvas></div>
+          <div class="sec-h">تقدّم التمرين — 1RM تقديري</div>
+          <select id="exSelect" onchange="selEx=this.value;renderExChart()"></select>
+          <div class="chart-card"><canvas id="exChart" height="170"></canvas></div>
+          <div class="sec-h">أرقامك القياسية 🏆</div>
+          <div id="prList"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🍽️ تحليل التغذية</h2>
+        <div id="nutEmpty" style="text-align:center;color:var(--muted);font-size:12.5px;padding:8px">استورد ملف MyFitnessPal ليظهر التحليل</div>
+        <div id="nutWrap" class="hidden">
+          <div id="nutBars"></div>
+          <div class="sec-h">السعرات يومياً</div>
+          <div class="chart-card"><canvas id="calChart" height="170"></canvas></div>
+        </div>
+      </div>
     </div>
 
     <!-- ============ HABITS ============ -->
@@ -322,6 +362,12 @@
         <input type="tel" id="stBudget" inputmode="decimal" placeholder="1000">
         <label>الوزن المستهدف (كجم)</label>
         <input type="tel" id="stTarget" inputmode="decimal" placeholder="اختياري">
+        <label>هدف السعرات اليومي (kcal)</label>
+        <input type="tel" id="stCal" inputmode="decimal" placeholder="مثال: 2400">
+        <label>هدف البروتين اليومي (جم)</label>
+        <input type="tel" id="stProtein" inputmode="decimal" placeholder="مثال: 150">
+        <label>هدف الماء اليومي (مل)</label>
+        <input type="tel" id="stWater" inputmode="decimal" placeholder="مثال: 3000">
         <button onclick="saveSettings()">حفظ الإعدادات</button>
         <div class="msg" id="stMsg"></div>
       </div>
@@ -391,7 +437,7 @@ const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return dstr(d
 const curMonth=()=>todayStr().slice(0,7);
 const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'ص':'م'}`};
 const arDate=iso=>new Date(iso+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
-const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2200)};
+const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2600)};
 const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
 const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
@@ -402,6 +448,7 @@ let curDebtCatId=null, chosenExpCatId=null, openDebtId=null, weightChartObj=null
 let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, editDebtCatId=null, tasksCache=[];
 let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
 let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
+let bodySets=[], bodyNut=[], bodyTargets={}, bodyWin=56, selEx=null, volChartObj=null, exChartObj=null, calChartObj=null;
 
 // ============ AUTH ============
 async function doLogin(){
@@ -781,17 +828,30 @@ async function delExp(id){
 }
 
 // ============ BODY ============
+async function fetchAll(table,cols,orderCol){
+  let out=[],from=0;const page=1000;
+  while(true){
+    const{data,error}=await db.from(table).select(cols).order(orderCol).range(from,from+page-1);
+    if(error||!data)break;
+    out=out.concat(data);
+    if(data.length<page)break;
+    from+=page;
+  }
+  return out;
+}
 async function loadBody(){
   const from=new Date();from.setDate(from.getDate()-59);
-  const[{data:wo},{data:ws}]=await Promise.all([
+  const[{data:wo},{data:ws},{data:st}]=await Promise.all([
     db.from('ds_workouts').select('on_date').gte('on_date',dstr(from)).order('on_date'),
-    db.from('ds_weights').select('*').order('on_date',{ascending:false}).limit(60)
+    db.from('ds_weights').select('*').order('on_date',{ascending:false}).limit(60),
+    db.from('ds_settings').select('cal_target,protein_target,water_target_ml').maybeSingle()
   ]);
+  bodyTargets={cal:st?Number(st.cal_target)||null:null,prot:st?Number(st.protein_target)||null:null,water:st?Number(st.water_target_ml)||null:null};
   const dates=new Set((wo||[]).map(w=>w.on_date));
   let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))wk++}
-  let st=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))st++;else if(i>0)break;else continue}
+  let st2=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))st2++;else if(i>0)break;else continue}
   $('bWeek').textContent=wk;
-  $('bStreak').textContent=st;
+  $('bStreak').textContent=st2;
   const doneToday=dates.has(todayStr());
   $('gymBtn').textContent=doneToday?'✅ تمرين اليوم موثّق — اضغط للتراجع':'سجّلت تمريني اليوم ✅';
   $('gymBtn').dataset.done=doneToday?'1':'0';
@@ -810,6 +870,9 @@ async function loadBody(){
                 y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
     });
   }
+  bodySets=await fetchAll('ds_workout_sets','on_date,exercise,set_number,reps,weight_kg,volume_kg','on_date');
+  bodyNut=await fetchAll('ds_nutrition_days','*','on_date');
+  renderBodyAnalysis();
 }
 async function toggleWorkout(){
   let error;
@@ -826,6 +889,209 @@ async function addWeight(){
   $('wKg').value='';
   msg('wMsg','تم حفظ الوزن ⚖️','ok');
   loadBody();
+}
+
+// ============ CSV IMPORT ============
+const normH=s=>String(s||'').toLowerCase().replace(/[^a-z\u0600-\u06FF0-9]/g,'');
+function pickCol(headers,cands){
+  const hs=headers.map(h=>({raw:h,n:normH(h)}));
+  for(const c of cands){const hit=hs.find(h=>h.n===c);if(hit)return hit.raw}
+  for(const c of cands){const hit=hs.find(h=>h.n.includes(c));if(hit)return hit.raw}
+  return null;
+}
+function parseDateCell(v){
+  if(!v)return null;const s=String(v).trim();
+  const iso=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(iso)return `${iso[1]}-${String(+iso[2]).padStart(2,'0')}-${String(+iso[3]).padStart(2,'0')}`;
+  const p=s.split(/[\/\.\s]+/).filter(Boolean);
+  if(p.length>=3){
+    let d,m,y;
+    if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}
+    else if(p[2].length===4){y=+p[2];const a=+p[0],b=+p[1];if(a>12){d=a;m=b}else if(b>12){d=b;m=a}else{d=a;m=b}}
+    if(y&&m>=1&&m<=12&&d>=1&&d<=31)return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  const t=Date.parse(s);if(!isNaN(t))return dstr(new Date(t));
+  return null;
+}
+const numV=v=>{const n=parseFloat(String(v??'').replace(/[^\d.\-]/g,''));return isNaN(n)?null:n};
+
+async function importLyfta(inp){
+  const f=inp.files[0];if(!f)return;inp.value='';
+  msg('impMsg','جاري قراءة ملف Lyfta...','ok');
+  Papa.parse(f,{header:true,skipEmptyLines:true,complete:async res=>{
+    const rows=res.data,headers=res.meta.fields||[];
+    const cDate=pickCol(headers,['date','startdate','starttime','workoutdate','day','التاريخ']);
+    const cEx=pickCol(headers,['exercisename','exercisetitle','exercise','movement','التمرين']);
+    const cSet=pickCol(headers,['setorder','setindex','setnumber','set']);
+    const cReps=pickCol(headers,['reps','repetitions','rep','التكرارات']);
+    const cW=pickCol(headers,['weightkg','weightlbs','weight','load','kg','الوزن']);
+    if(!cDate||!cEx)return msg('impMsg','لم أتعرف على أعمدة التاريخ/التمرين — أرسل لي سطر العناوين من الملف','err');
+    const lb=cW&&normH(cW).includes('lb');
+    const out=[],seen=new Set(),setCounter={};let skipped=0;
+    rows.forEach(r=>{
+      const on_date=parseDateCell(r[cDate]);
+      const ex=String(r[cEx]||'').trim();
+      if(!on_date||!ex){skipped++;return}
+      let reps=cReps?numV(r[cReps]):null;
+      let w=cW?numV(r[cW]):null;
+      if(w!=null&&lb)w=Math.round(w*0.45359237*100)/100;
+      let sn=cSet?numV(r[cSet]):null;
+      if(sn==null||sn<1){const k=on_date+'|'+ex;setCounter[k]=(setCounter[k]||0)+1;sn=setCounter[k]}
+      sn=Math.round(sn);
+      const key=on_date+'|'+ex+'|'+sn;
+      if(seen.has(key)){skipped++;return}
+      seen.add(key);
+      const vol=(reps&&w)?Math.round(reps*w*100)/100:null;
+      out.push({user_id:me.id,on_date,exercise:ex,set_number:sn,reps:reps!=null?Math.round(reps):null,weight_kg:w,volume_kg:vol});
+    });
+    if(!out.length)return msg('impMsg','لا صفوف صالحة في الملف'+(skipped?` (تم تجاهل ${skipped})`:''),'err');
+    let err=null;
+    for(let i=0;i<out.length;i+=500){
+      const{error}=await db.from('ds_workout_sets').upsert(out.slice(i,i+500),{onConflict:'user_id,on_date,exercise,set_number'});
+      if(error){err=error;break}
+    }
+    if(err)return msg('impMsg','خطأ: '+err.message,'err');
+    msg('impMsg',`تم استيراد ${out.length} سطر تمرين ✅${skipped?` · تم تجاهل ${skipped}`:''}`,'ok');
+    loadBody();
+  },error:e=>msg('impMsg','تعذّرت قراءة الملف: '+e.message,'err')});
+}
+
+async function importMFP(inp){
+  const f=inp.files[0];if(!f)return;inp.value='';
+  msg('impMsg','جاري قراءة ملف MyFitnessPal...','ok');
+  Papa.parse(f,{header:true,skipEmptyLines:true,complete:async res=>{
+    const rows=res.data,headers=res.meta.fields||[];
+    const cDate=pickCol(headers,['date','التاريخ']);
+    const cMeal=pickCol(headers,['mealname','meal','الوجبة']);
+    const cCal=pickCol(headers,['calories','energykcal','energy','kcal','السعرات']);
+    const cProt=pickCol(headers,['proteing','protein','البروتين']);
+    const cCarb=pickCol(headers,['carbohydratesg','carbohydrates','carbsg','carbs']);
+    const cFat=pickCol(headers,['totalfatg','fatg','fat','الدهون']);
+    const cWater=pickCol(headers,['waterml','watercups','waterfloz','water','الماء']);
+    if(!cDate||!cCal)return msg('impMsg','لم أتعرف على أعمدة التاريخ/السعرات — أرسل لي سطر العناوين من الملف','err');
+    const wUnit=cWater?normH(cWater):'';
+    const days={};let skipped=0;
+    rows.forEach(r=>{
+      const d=parseDateCell(r[cDate]);
+      if(!d){skipped++;return}
+      if(cMeal){const m=normH(r[cMeal]);if(m==='total'||m==='totals'||m==='المجموع')return}
+      const day=days[d]=days[d]||{calories:0,protein_g:0,carbs_g:0,fat_g:0,waters:[]};
+      day.calories+=numV(r[cCal])||0;
+      if(cProt)day.protein_g+=numV(r[cProt])||0;
+      if(cCarb)day.carbs_g+=numV(r[cCarb])||0;
+      if(cFat)day.fat_g+=numV(r[cFat])||0;
+      if(cWater){const wv=numV(r[cWater]);if(wv!=null&&wv>0)day.waters.push(wv)}
+    });
+    const out=Object.entries(days).map(([d,v])=>{
+      let water=null;
+      if(v.waters.length){
+        const allEq=v.waters.every(x=>x===v.waters[0]);
+        water=allEq?v.waters[0]:v.waters.reduce((a,b)=>a+b,0);
+        if(wUnit.includes('cup'))water*=236.588;
+        else if(wUnit.includes('oz'))water*=29.5735;
+        water=Math.round(water);
+      }
+      return {user_id:me.id,on_date:d,calories:Math.round(v.calories),protein_g:Math.round(v.protein_g),carbs_g:Math.round(v.carbs_g),fat_g:Math.round(v.fat_g),water_ml:water};
+    });
+    if(!out.length)return msg('impMsg','لا صفوف صالحة في الملف'+(skipped?` (تم تجاهل ${skipped})`:''),'err');
+    let err=null;
+    for(let i=0;i<out.length;i+=500){
+      const{error}=await db.from('ds_nutrition_days').upsert(out.slice(i,i+500),{onConflict:'user_id,on_date'});
+      if(error){err=error;break}
+    }
+    if(err)return msg('impMsg','خطأ: '+err.message,'err');
+    msg('impMsg',`تم استيراد ${out.length} يوم تغذية ✅${skipped?` · تم تجاهل ${skipped}`:''}`,'ok');
+    loadBody();
+  },error:e=>msg('impMsg','تعذّرت قراءة الملف: '+e.message,'err')});
+}
+
+// ============ BODY ANALYSIS ============
+function winCutoff(){if(!bodyWin)return null;const d=new Date();d.setDate(d.getDate()-(bodyWin-1));return dstr(d)}
+function setBodyWin(w,el){bodyWin=w;document.querySelectorAll('#bwChips .chip').forEach(x=>x.classList.remove('active'));el.classList.add('active');renderBodyAnalysis()}
+const e1rm=(w,r)=>w*(1+r/30);
+function renderBodyAnalysis(){
+  const cut=winCutoff();
+  const sets=cut?bodySets.filter(s=>s.on_date>=cut):bodySets;
+  const nut=cut?bodyNut.filter(n=>n.on_date>=cut):bodyNut;
+  const hasT=bodySets.length>0;
+  $('trainWrap').classList.toggle('hidden',!hasT);
+  $('trainEmpty').classList.toggle('hidden',hasT);
+  if(hasT){renderVolChart(sets);buildExSelect();renderExChart();renderPRs()}
+  const hasN=bodyNut.length>0;
+  $('nutWrap').classList.toggle('hidden',!hasN);
+  $('nutEmpty').classList.toggle('hidden',hasN);
+  if(hasN)renderNutrition(nut);
+}
+function renderVolChart(sets){
+  const wk={};
+  sets.forEach(s=>{if(!s.volume_kg)return;const d=new Date(s.on_date+'T00:00:00');d.setDate(d.getDate()-d.getDay());const k=dstr(d);wk[k]=(wk[k]||0)+Number(s.volume_kg)});
+  const keys=Object.keys(wk).sort();
+  if(volChartObj)volChartObj.destroy();
+  volChartObj=new Chart($('volChart'),{type:'bar',
+    data:{labels:keys.map(k=>k.slice(5)),datasets:[{data:keys.map(k=>Math.round(wk[k])),backgroundColor:'rgba(111,217,166,.45)',borderColor:'#6fd9a6',borderWidth:1,borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{display:false}},
+              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+}
+function buildExSelect(){
+  const vol={};bodySets.forEach(s=>{vol[s.exercise]=(vol[s.exercise]||0)+(Number(s.volume_kg)||0)});
+  const list=Object.keys(vol).sort((a,b)=>vol[b]-vol[a]);
+  if(!selEx||!list.includes(selEx))selEx=list[0]||null;
+  $('exSelect').innerHTML=list.map(e=>`<option value="${esc(e)}" ${e===selEx?'selected':''}>${esc(e)}</option>`).join('');
+}
+function renderExChart(){
+  const cut=winCutoff();
+  const rows=bodySets.filter(s=>s.exercise===selEx&&s.reps&&s.weight_kg&&(!cut||s.on_date>=cut));
+  const byD={};rows.forEach(s=>{const v=e1rm(Number(s.weight_kg),Number(s.reps));if(!byD[s.on_date]||v>byD[s.on_date])byD[s.on_date]=v});
+  const keys=Object.keys(byD).sort();
+  if(exChartObj)exChartObj.destroy();
+  exChartObj=new Chart($('exChart'),{type:'line',
+    data:{labels:keys.map(k=>k.slice(5)),datasets:[{data:keys.map(k=>Math.round(byD[k]*10)/10),borderColor:'#d8bd84',backgroundColor:'rgba(216,189,132,.12)',fill:true,tension:.3,pointRadius:3,borderWidth:2}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+}
+function renderPRs(){
+  const best={};
+  bodySets.forEach(s=>{
+    if(!s.reps||!s.weight_kg)return;
+    const v=e1rm(Number(s.weight_kg),Number(s.reps));
+    if(!best[s.exercise]||v>best[s.exercise].v)best[s.exercise]={v,w:Number(s.weight_kg),r:Number(s.reps),d:s.on_date};
+  });
+  const top=Object.entries(best).sort((a,b)=>b[1].v-a[1].v).slice(0,5);
+  $('prList').innerHTML=top.length?top.map(([e,p])=>`
+    <div class="item"><div><b>${esc(e)}</b><div class="meta">${p.w} كجم × ${p.r} · ${p.d}</div></div>
+    <b style="color:var(--gold)">${Math.round(p.v*10)/10} <span style="font-size:10px">1RM</span></b></div>`).join('')
+    :'<div class="meta" style="text-align:center;padding:6px">لا أرقام بعد</div>';
+}
+function nutBar(label,avg,target,unit,overIsBad){
+  const pct=target?Math.min(100,avg/target*100):0;
+  const over=target&&avg>target&&overIsBad;
+  return `<div style="margin-top:10px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
+      <span>${label}: <b style="color:var(--text)">${fmt(avg)}</b> ${unit}</span>
+      <span>${target?'الهدف: '+fmt(target):'حدد الهدف من ⚙️'}</span></div>
+    <div class="bar"><div style="width:${pct}%;${over?'background:var(--red)':''}"></div></div>
+  </div>`;
+}
+function renderNutrition(nut){
+  const days=nut.length||1;
+  const avg=k=>Math.round(nut.reduce((a,n)=>a+(Number(n[k])||0),0)/days);
+  const wDays=nut.filter(n=>n.water_ml!=null);
+  const avgW=wDays.length?Math.round(wDays.reduce((a,n)=>a+Number(n.water_ml),0)/wDays.length):0;
+  $('nutBars').innerHTML=
+    nutBar('السعرات',avg('calories'),bodyTargets.cal,'kcal',true)+
+    nutBar('البروتين',avg('protein_g'),bodyTargets.prot,'جم',false)+
+    nutBar('الماء',avgW,bodyTargets.water,'مل',false);
+  const sorted=nut.slice().sort((a,b)=>a.on_date.localeCompare(b.on_date));
+  const keys=sorted.map(n=>n.on_date);
+  if(calChartObj)calChartObj.destroy();
+  const dsets=[{data:sorted.map(n=>Number(n.calories)||0),borderColor:'#6fd9a6',backgroundColor:'rgba(111,217,166,.1)',fill:true,tension:.3,pointRadius:2,borderWidth:2}];
+  if(bodyTargets.cal)dsets.push({data:keys.map(()=>bodyTargets.cal),borderColor:'#d8bd84',borderDash:[5,4],pointRadius:0,borderWidth:1.5,fill:false});
+  calChartObj=new Chart($('calChart'),{type:'line',data:{labels:keys.map(k=>k.slice(5)),datasets:dsets},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
 }
 
 // ============ HABITS ============
@@ -1076,6 +1342,9 @@ async function loadSettings(){
   $('stRecvTitle').value=(st&&st.recv_title)||'';
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
   $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
+  $('stCal').value=(st&&st.cal_target!=null)?Number(st.cal_target):'';
+  $('stProtein').value=(st&&st.protein_target!=null)?Number(st.protein_target):'';
+  $('stWater').value=(st&&st.water_target_ml!=null)?Number(st.water_target_ml):'';
   $('debtCatList').innerHTML=debtCats.length?debtCats.map(c=>`
     <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.name)}</b>${c.count_in_total?'':'<div class="meta">لا يُحسب في «متبقي ديوني»</div>'}${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -1117,12 +1386,12 @@ async function loadSettings(){
 async function saveSettings(){
   const b=parseFloat($('stBudget').value);
   if(isNaN(b)||b<0)return msg('stMsg','أدخل حد مصاريف صحيح','err');
-  const tRaw=$('stTarget').value.trim();
-  const t=tRaw===''?null:parseFloat(tRaw);
-  if(t!==null&&(isNaN(t)||t<=0))return msg('stMsg','أدخل وزن مستهدف صحيح أو اتركه فارغاً','err');
+  const numOrNull=id=>{const r=$(id).value.trim();if(r==='')return null;const n=parseFloat(r);return(isNaN(n)||n<0)?undefined:n};
+  const t=numOrNull('stTarget'),cal=numOrNull('stCal'),prot=numOrNull('stProtein'),wat=numOrNull('stWater');
+  if([t,cal,prot,wat].includes(undefined))return msg('stMsg','تأكد من الأرقام — أو اترك الحقل فارغاً','err');
   const dn=$('stName').value.trim()||null;
   const rt=$('stRecvTitle').value.trim()||'المستحقات';
-  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t,display_name:dn,recv_title:rt},{onConflict:'user_id'});
+  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t,display_name:dn,recv_title:rt,cal_target:cal,protein_target:prot,water_target_ml:wat},{onConflict:'user_id'});
   if(fail('stMsg',error))return;
   if(dn){me.full_name=dn;$('gName').textContent=dn.split(' ')[0]}
   msg('stMsg','حُفظت الإعدادات ✅','ok');
