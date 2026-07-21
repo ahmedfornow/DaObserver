@@ -98,6 +98,8 @@
   .row2{display:flex;gap:8px}
   .row2 > *{flex:1}
   .signoff{font-family:var(--serif);text-align:center;color:var(--muted);font-size:12.5px;margin:28px 0 6px;letter-spacing:.3px}
+  .sumline{display:flex;justify-content:space-around;margin-top:12px;font-size:13px;font-variant-numeric:tabular-nums}
+  .sumline b{font-size:16px}
   @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -190,6 +192,19 @@
         <div><div class="num" id="mLeak">—</div><div class="lbl">مصاريف الشهر</div></div>
       </div>
 
+      <div class="card" style="padding:16px 18px">
+        <div id="mpChips" style="display:flex;gap:6px;justify-content:center">
+          <span class="chip active" onclick="setMoneyPeriod('day',this)">يوم</span>
+          <span class="chip" onclick="setMoneyPeriod('week',this)">أسبوع</span>
+          <span class="chip" onclick="setMoneyPeriod('month',this)">شهر</span>
+        </div>
+        <div class="sumline">
+          <span style="color:var(--muted)">مدخول <b id="sumInc" style="color:var(--green)">—</b></span>
+          <span style="color:var(--muted)">مصروف <b id="sumExp" style="color:var(--red)">—</b></span>
+          <span style="color:var(--muted)">الفرق <b id="sumNet">—</b></span>
+        </div>
+      </div>
+
       <div class="card">
         <h2>💳 الديون</h2>
         <div id="debtCatChips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
@@ -227,6 +242,17 @@
         </div>
         <div id="expList"></div>
         <div class="msg" id="expMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>💵 مداخيل اليوم (عدا الديون)</h2>
+        <div id="incChips" style="margin-top:2px"></div>
+        <div class="row2" style="margin-top:8px">
+          <input type="tel" id="incAmt" inputmode="decimal" placeholder="المبلغ">
+          <button id="incSaveBtn" style="margin:0;width:90px" onclick="saveInc()">سجّل</button>
+        </div>
+        <div id="incList"></div>
+        <div class="msg" id="incMsg"></div>
       </div>
     </div>
 
@@ -395,6 +421,17 @@
       </div>
 
       <div class="card">
+        <h2>💵 فئات المداخيل</h2>
+        <div id="incCatList"></div>
+        <button class="ghost" onclick="openIncCatForm()">＋ فئة جديدة</button>
+        <div id="addIncCatWrap" class="hidden">
+          <div class="row2"><input type="text" id="niIcon" placeholder="💰" style="width:70px;flex:none;text-align:center"><input type="text" id="niName" placeholder="اسم الفئة"></div>
+          <button id="incCatSaveBtn" onclick="saveIncCat()">حفظ الفئة</button>
+        </div>
+        <div class="msg" id="incCatMsg"></div>
+      </div>
+
+      <div class="card">
         <h2>🏷️ فئات الملاحظات</h2>
         <div id="labelList"></div>
         <button class="ghost" onclick="openLabelForm()">＋ فئة جديدة</button>
@@ -446,6 +483,7 @@ const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',mon
 let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], debtCats=[], paymentsByDebt={};
 let curDebtCatId=null, chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
 let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, editDebtCatId=null, tasksCache=[];
+let incs=[], incCats=[], allIncCats=[], chosenIncCatId=null, editIncId=null, editIncCatId=null, moneyPeriod='day';
 let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
 let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
 let bodySets=[], bodyNut=[], bodyTargets={}, bodyWin=56, selEx=null, volChartObj=null, exChartObj=null, calChartObj=null;
@@ -613,23 +651,35 @@ async function toggleHabit(id,isDone,src){
 
 // ============ MONEY ============
 function resetMoneyForms(){
-  editDebtId=null;editRecvId=null;editExpId=null;
+  editDebtId=null;editRecvId=null;editExpId=null;editIncId=null;
   $('debtSaveBtn').textContent='حفظ الدين';
   $('recvSaveBtn').textContent='حفظ المستحق';
   $('expSaveBtn').textContent='سجّل';
+  $('incSaveBtn').textContent='سجّل';
+}
+function weekStartStr(){
+  const t=new Date();
+  const off=(t.getDay()+1)%7; // Saturday-start week (Sat=0 offset)
+  const s=new Date(t);s.setDate(t.getDate()-off);
+  return dstr(s);
 }
 async function loadMoney(){
   resetMoneyForms();
-  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc}]=await Promise.all([
+  const monthStart=curMonth()+'-01';
+  const ws=weekStartStr();
+  const fetchFrom=ws<monthStart?ws:monthStart; // week can start before the 1st
+  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc},{data:inc},{data:ic}]=await Promise.all([
     db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
     db.from('ds_payments').select('id,debt_id,amount,paid_on,note'),
     db.from('ds_receivables').select('*').order('created_at'),
-    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
+    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',fetchFrom).order('created_at',{ascending:false}),
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order')
+    db.from('ds_debt_categories').select('*').order('sort_order'),
+    db.from('ds_income').select('*, ds_income_categories(name,icon)').gte('received_on',fetchFrom).order('created_at',{ascending:false}),
+    db.from('ds_income_categories').select('*').eq('active',true).order('sort_order')
   ]);
-  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[];
+  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[]; incs=inc||[]; incCats=ic||[];
   paymentsByDebt={};
   (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
   Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
@@ -639,14 +689,18 @@ async function loadMoney(){
   const citOff=new Set(debtCats.filter(c=>!c.count_in_total).map(c=>c.id));
   const ownLeft=debts.filter(d=>!citOff.has(d.category_id)).reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
   const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
-  const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
+  const monthExps=exps.filter(e=>e.spent_on>=monthStart);
+  const leakTotal=monthExps.reduce((a,e)=>a+Number(e.amount),0);
   $('mDebtLeft').textContent=fmt(ownLeft);
   $('mRecv').textContent=fmt(recvPend);
   $('mLeak').textContent=fmt(leakTotal);
   $('recvTitle').textContent=(st&&st.recv_title)||'المستحقات';
   if(!expCats.find(c=>c.id===chosenExpCatId))
     chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
+  if(!incCats.find(c=>c.id===chosenIncCatId))
+    chosenIncCatId=(incCats.find(c=>c.name==='أخرى')||incCats[0]||{}).id||null;
   renderExpChips();
+  renderIncChips();
   renderDebtChips();
   renderDebts();
   $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
@@ -663,13 +717,49 @@ async function loadMoney(){
   const pct=Math.min(100,budget>0?leakTotal/budget*100:0);
   $('leakBar').style.width=pct+'%';
   $('leakBar').style.background=pct>=100?'var(--red)':'';
-  $('expList').innerHTML=exps.slice(0,6).map(e=>{
+  $('expList').innerHTML=monthExps.slice(0,6).map(e=>{
     const c=e.ds_expense_categories||{};
     return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${e.spent_on}</div></div>
       <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
       <button class="ico" onclick="editExp(${e.id})">✏️</button>
       <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`;
   }).join('');
+  $('incList').innerHTML=incs.filter(i=>i.received_on>=monthStart).slice(0,6).map(i=>{
+    const c=i.ds_income_categories||{};
+    return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${i.received_on}</div></div>
+      <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--green)">+${fmt(i.amount)}</b>
+      <button class="ico" onclick="editInc(${i.id})">✏️</button>
+      <button class="del" onclick="delInc(${i.id})">🗑️</button></span></div>`;
+  }).join('');
+  updateSummaryBar();
+}
+function periodRange(){
+  if(moneyPeriod==='day')return[todayStr(),todayStr()];
+  if(moneyPeriod==='week'){
+    const s=weekStartStr();
+    const e=new Date(s+'T00:00:00');e.setDate(e.getDate()+6);
+    return[s,dstr(e)];
+  }
+  const t=new Date();
+  const s=new Date(t.getFullYear(),t.getMonth(),1),e=new Date(t.getFullYear(),t.getMonth()+1,0);
+  return[dstr(s),dstr(e)];
+}
+function updateSummaryBar(){
+  const[f,t]=periodRange();
+  const i=incs.filter(x=>x.received_on>=f&&x.received_on<=t).reduce((a,x)=>a+Number(x.amount),0);
+  const e=exps.filter(x=>x.spent_on>=f&&x.spent_on<=t).reduce((a,x)=>a+Number(x.amount),0);
+  const n=i-e;
+  $('sumInc').textContent=fmt(i);
+  $('sumExp').textContent=fmt(e);
+  const el=$('sumNet');
+  el.textContent=(n>=0?'+':'−')+fmt(Math.abs(n));
+  el.style.color=n>=0?'var(--green)':'var(--red)';
+}
+function setMoneyPeriod(p,el){
+  moneyPeriod=p;
+  document.querySelectorAll('#mpChips .chip').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  updateSummaryBar();
 }
 function renderDebtChips(){
   const act=debtCats.filter(c=>c.active);
@@ -684,6 +774,12 @@ function renderExpChips(){
   ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِفها من ⚙️ الإعدادات</div>';
 }
 function expCat(id){chosenExpCatId=id;renderExpChips()}
+function renderIncChips(){
+  $('incChips').innerHTML=incCats.length?incCats.map(c=>
+    `<span class="chip ${c.id===chosenIncCatId?'active':''}" onclick="incCat(${c.id})">${esc(c.icon)} ${esc(c.name)}</span>`
+  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — شغّل سكربت SQL أولاً أو أضِفها من ⚙️ الإعدادات</div>';
+}
+function incCat(id){chosenIncCatId=id;renderIncChips()}
 function renderDebts(){
   if(!curDebtCatId){$('debtsList').innerHTML='<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">أضِف فئة ديون أولاً من ⚙️</div>';return}
   const list=debts.filter(d=>d.category_id===curDebtCatId);
@@ -824,6 +920,34 @@ async function delExp(id){
   if(!confirm('حذف هذا المصروف؟'))return;
   const{error}=await db.from('ds_expenses').delete().eq('id',id);
   if(fail('expMsg',error))return;
+  loadMoney();
+}
+function editInc(id){
+  const e=incs.find(x=>x.id===id);if(!e)return;
+  editIncId=id;
+  $('incAmt').value=e.amount;
+  chosenIncCatId=e.category_id;
+  renderIncChips();
+  $('incSaveBtn').textContent='تحديث';
+}
+async function saveInc(){
+  const a=parseFloat($('incAmt').value);
+  if(isNaN(a)||a<=0)return msg('incMsg','أدخل المبلغ','err');
+  if(!chosenIncCatId)return msg('incMsg','أضِف فئة من ⚙️ الإعدادات أولاً','err');
+  if(busy)return;busy=true;
+  const q=editIncId
+    ? db.from('ds_income').update({amount:a,category_id:chosenIncCatId}).eq('id',editIncId)
+    : db.from('ds_income').insert({amount:a,category_id:chosenIncCatId,received_on:todayStr()});
+  const{error}=await q;
+  busy=false;
+  if(fail('incMsg',error))return;
+  $('incAmt').value='';
+  loadMoney();
+}
+async function delInc(id){
+  if(!confirm('حذف هذا المدخول؟'))return;
+  const{error}=await db.from('ds_income').delete().eq('id',id);
+  if(fail('incMsg',error))return;
   loadMoney();
 }
 
@@ -1329,15 +1453,17 @@ async function loadSettings(){
   editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
   editLabelId=null;$('labelSaveBtn').textContent='حفظ الفئة';
   editDebtCatId=null;$('debtCatSaveBtn').textContent='حفظ الفئة';
-  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc}]=await Promise.all([
+  editIncCatId=null;$('incCatSaveBtn').textContent='حفظ الفئة';
+  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc},{data:ic}]=await Promise.all([
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').order('sort_order'),
     db.from('ds_debts').select('*').eq('active',false).order('amount'),
     db.from('ds_habits').select('*').eq('active',false).order('sort_order'),
     db.from('ds_note_labels').select('*').order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order')
+    db.from('ds_debt_categories').select('*').order('sort_order'),
+    db.from('ds_income_categories').select('*').order('sort_order')
   ]);
-  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];
+  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];allIncCats=ic||[];
   $('stName').value=(st&&st.display_name)||'';
   $('stRecvTitle').value=(st&&st.recv_title)||'';
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
@@ -1364,6 +1490,17 @@ async function loadSettings(){
           :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
         <button class="del" onclick="delCat(${c.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
+  $('incCatList').innerHTML=allIncCats.length?allIncCats.map(c=>{
+    const locked=c.name==='أخرى';
+    return `<div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${locked?'<div class="meta">فئة ثابتة 🔒</div>':''}${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
+      ${locked?'':`<span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" onclick="editIncCat(${c.id})">✏️</button>
+        ${c.active
+          ?`<button class="ico" onclick="setIncCatActive(${c.id},false)">🗄️</button>`
+          :`<button class="ico" onclick="setIncCatActive(${c.id},true)">↩️</button>`}
+        <button class="del" onclick="delIncCat(${c.id})">🗑️</button>
+      </span>`}</div>`;
+  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — شغّل سكربت SQL في Supabase أولاً</div>';
   $('labelList').innerHTML=noteLabels.length?noteLabels.map(l=>`
     <div class="item"><div><b><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</b></div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -1483,6 +1620,56 @@ async function delCat(id){
   if(error){
     if(error.code==='23503')msg('catMsg','الفئة مستخدمة في مصاريف مسجّلة — أرشِفها بدلاً من الحذف','err');
     else fail('catMsg',error);
+    return;
+  }
+  loadSettings();
+}
+function openIncCatForm(){
+  const w=$('addIncCatWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editIncCatId=null;$('niIcon').value='';$('niName').value='';$('incCatSaveBtn').textContent='حفظ الفئة'}
+}
+function editIncCat(id){
+  const c=allIncCats.find(x=>x.id===id);if(!c)return;
+  if(c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
+  editIncCatId=id;
+  $('niIcon').value=c.icon||'';$('niName').value=c.name;
+  $('incCatSaveBtn').textContent='تحديث الفئة';
+  $('addIncCatWrap').classList.remove('hidden');
+}
+async function saveIncCat(){
+  const n=$('niName').value.trim(),ic=$('niIcon').value.trim()||'💰';
+  if(!n)return msg('incCatMsg','اكتب اسم الفئة','err');
+  if(editIncCatId){
+    const cur=allIncCats.find(x=>x.id===editIncCatId);
+    if(cur&&cur.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
+  }
+  if(busy)return;busy=true;
+  const q=editIncCatId
+    ? db.from('ds_income_categories').update({name:n,icon:ic}).eq('id',editIncCatId)
+    : db.from('ds_income_categories').insert({name:n,icon:ic,sort_order:allIncCats.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('incCatMsg',error))return;
+  $('niName').value='';$('niIcon').value='';
+  $('addIncCatWrap').classList.add('hidden');
+  loadSettings();
+}
+async function setIncCatActive(id,active){
+  const c=allIncCats.find(x=>x.id===id);
+  if(c&&c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُؤرشَف','err');
+  const{error}=await db.from('ds_income_categories').update({active}).eq('id',id);
+  if(fail('incCatMsg',error))return;
+  loadSettings();
+}
+async function delIncCat(id){
+  const c=allIncCats.find(x=>x.id===id);
+  if(c&&c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
+  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
+  const{error}=await db.from('ds_income_categories').delete().eq('id',id);
+  if(error){
+    if(error.code==='23503')msg('incCatMsg','الفئة مستخدمة في مداخيل مسجّلة — أرشِفها بدلاً من الحذف','err');
+    else fail('incCatMsg',error);
     return;
   }
   loadSettings();
