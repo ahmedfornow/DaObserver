@@ -190,11 +190,7 @@
 
       <div class="card">
         <h2>💳 الديون</h2>
-        <div style="display:flex;gap:6px;margin-bottom:8px">
-          <span class="chip active" id="dc-personal" onclick="debtCat('personal')">شخصية</span>
-          <span class="chip" id="dc-father" onclick="debtCat('father')">مشروع الوالد</span>
-          <span class="chip" id="dc-gov" onclick="debtCat('gov')">حكومية</span>
-        </div>
+        <div id="debtCatChips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
         <div id="debtsList"><div style="text-align:center;color:var(--muted);padding:10px;font-size:13px">...</div></div>
         <button class="ghost" onclick="openDebtForm()">＋ إضافة دين</button>
         <div id="addDebtWrap" class="hidden">
@@ -206,7 +202,7 @@
       </div>
 
       <div class="card">
-        <h2>🏗️ مستحقات المؤسسة</h2>
+        <h2 id="recvTitle">المستحقات</h2>
         <div id="recvList"></div>
         <button class="ghost" onclick="openRecvForm()">＋ إضافة مستحق</button>
         <div id="addRecvWrap" class="hidden">
@@ -318,12 +314,27 @@
     <div id="paneSettings" class="hidden">
       <div class="card">
         <h2>⚙️ الإعدادات</h2>
+        <label>الاسم الظاهر</label>
+        <input type="text" id="stName" placeholder="اسمك">
+        <label>عنوان قسم المستحقات</label>
+        <input type="text" id="stRecvTitle" placeholder="المستحقات">
         <label>حد مصاريف الشهر (ريال)</label>
         <input type="tel" id="stBudget" inputmode="decimal" placeholder="1000">
         <label>الوزن المستهدف (كجم)</label>
         <input type="tel" id="stTarget" inputmode="decimal" placeholder="اختياري">
         <button onclick="saveSettings()">حفظ الإعدادات</button>
         <div class="msg" id="stMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>💳 فئات الديون</h2>
+        <div id="debtCatList"></div>
+        <button class="ghost" onclick="openDebtCatForm()">＋ فئة جديدة</button>
+        <div id="addDebtCatWrap" class="hidden">
+          <input type="text" id="dcName" placeholder="اسم الفئة">
+          <button id="debtCatSaveBtn" onclick="saveDebtCat()">حفظ الفئة</button>
+        </div>
+        <div class="msg" id="debtCatMsg"></div>
       </div>
 
       <div class="card">
@@ -386,9 +397,9 @@ const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
 const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',money:'التسرّب يُرى قبل أن يُغرق.',body:'الالتزام يُوثَّق هنا، والتمرين في Lyfta.',habits:'القليل الدائم يغلب الكثير المنقطع.',notes:'أكتب لأرى ما أفكر فيه.',settings:'هنا تُضبط الأدوات.'};
 
-let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], paymentsByDebt={};
-let curDebtCat='personal', chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
-let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, tasksCache=[];
+let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], debtCats=[], paymentsByDebt={};
+let curDebtCatId=null, chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
+let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, editDebtCatId=null, tasksCache=[];
 let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
 let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
 
@@ -405,7 +416,8 @@ async function doLogin(){
 async function boot(){
   const{data:{user}}=await db.auth.getUser();
   if(!user)return;
-  me={id:user.id,full_name:'أحمد'};
+  const{data:bs}=await db.from('ds_settings').select('display_name').maybeSingle();
+  me={id:user.id,full_name:(bs&&bs.display_name)||'أهلاً بك'};
   const h=new Date().getHours();
   $('greetLine').textContent=h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙';
   $('gName').textContent=me.full_name.split(' ')[0];
@@ -561,28 +573,34 @@ function resetMoneyForms(){
 }
 async function loadMoney(){
   resetMoneyForms();
-  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs}]=await Promise.all([
+  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc}]=await Promise.all([
     db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
     db.from('ds_payments').select('id,debt_id,amount,paid_on,note'),
     db.from('ds_receivables').select('*').order('created_at'),
     db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
     db.from('ds_settings').select('*').maybeSingle(),
-    db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order')
+    db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order'),
+    db.from('ds_debt_categories').select('*').order('sort_order')
   ]);
-  debts=ds||[]; exps=ex||[]; expCats=cs||[];
+  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[];
   paymentsByDebt={};
   (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
   Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
   debts.forEach(d=>d.paid=(paymentsByDebt[d.id]||[]).reduce((a,p)=>a+Number(p.amount),0));
-  const ownLeft=debts.filter(d=>d.category!=='father').reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
+  const activeDebtCats=debtCats.filter(c=>c.active);
+  if(!activeDebtCats.find(c=>c.id===curDebtCatId))curDebtCatId=activeDebtCats[0]?activeDebtCats[0].id:null;
+  const citOff=new Set(debtCats.filter(c=>!c.count_in_total).map(c=>c.id));
+  const ownLeft=debts.filter(d=>!citOff.has(d.category_id)).reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
   const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
   const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
   $('mDebtLeft').textContent=fmt(ownLeft);
   $('mRecv').textContent=fmt(recvPend);
   $('mLeak').textContent=fmt(leakTotal);
+  $('recvTitle').textContent=(st&&st.recv_title)||'المستحقات';
   if(!expCats.find(c=>c.id===chosenExpCatId))
     chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
   renderExpChips();
+  renderDebtChips();
   renderDebts();
   $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
     <div class="item"><div><b>${esc(r.name)}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
@@ -590,7 +608,7 @@ async function loadMoney(){
         ${r.status==='pending'?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="markRecv(${r.id})">استلمت ✓</button>`:''}
         <button class="ico" onclick="editRecv(${r.id})">✏️</button>
         <button class="del" onclick="delRecv(${r.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقات المؤسسة هنا لتتابعها</div>';
+      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقاتك هنا لتتابعها</div>';
   window._recvCache=recv||[];
   const budget=st?Number(st.monthly_leak_budget):1000;
   $('leakTxt').textContent=`${fmt(leakTotal)} ريال`;
@@ -606,19 +624,22 @@ async function loadMoney(){
       <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`;
   }).join('');
 }
+function renderDebtChips(){
+  const act=debtCats.filter(c=>c.active);
+  $('debtCatChips').innerHTML=act.length?act.map(c=>
+    `<span class="chip ${c.id===curDebtCatId?'active':''}" onclick="debtCat(${c.id})">${esc(c.name)}</span>`
+  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِف فئات ديونك من ⚙️ الإعدادات</div>';
+}
+function debtCat(id){curDebtCatId=id;renderDebtChips();renderDebts()}
 function renderExpChips(){
   $('expChips').innerHTML=expCats.length?expCats.map(c=>
     `<span class="chip ${c.id===chosenExpCatId?'active':''}" onclick="expCat(${c.id})">${esc(c.icon)} ${esc(c.name)}</span>`
   ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِفها من ⚙️ الإعدادات</div>';
 }
 function expCat(id){chosenExpCatId=id;renderExpChips()}
-function debtCat(c){
-  curDebtCat=c;
-  ['personal','father','gov'].forEach(x=>$('dc-'+x).classList.toggle('active',x===c));
-  renderDebts();
-}
 function renderDebts(){
-  const list=debts.filter(d=>d.category===curDebtCat);
+  if(!curDebtCatId){$('debtsList').innerHTML='<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">أضِف فئة ديون أولاً من ⚙️</div>';return}
+  const list=debts.filter(d=>d.category_id===curDebtCatId);
   $('debtsList').innerHTML=list.length?list.map(d=>{
     const left=Math.max(0,d.amount-d.paid);
     const pct=d.amount>0?Math.min(100,d.paid/d.amount*100):0;
@@ -666,18 +687,19 @@ function editDebt(id){
   const d=debts.find(x=>x.id===id);if(!d)return;
   editDebtId=id;
   $('ndName').value=d.name;$('ndAmt').value=d.amount;$('ndNote').value=d.note||'';
-  debtCat(d.category);
+  debtCat(d.category_id);
   $('debtSaveBtn').textContent='تحديث الدين';
   $('addDebtWrap').classList.remove('hidden');
 }
 async function saveDebt(){
   const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value),note=$('ndNote').value.trim()||null;
   if(!n||isNaN(a))return msg('debtMsg','أكمل الاسم والمبلغ','err');
+  if(!curDebtCatId)return msg('debtMsg','أضِف فئة ديون أولاً من ⚙️ الإعدادات','err');
   if(busy)return;busy=true;
   const wasEdit=!!editDebtId;
   const q=wasEdit
-    ? db.from('ds_debts').update({name:n,amount:a,note,category:curDebtCat}).eq('id',editDebtId)
-    : db.from('ds_debts').insert({name:n,amount:a,note,category:curDebtCat});
+    ? db.from('ds_debts').update({name:n,amount:a,note,category_id:curDebtCatId}).eq('id',editDebtId)
+    : db.from('ds_debts').insert({name:n,amount:a,note,category_id:curDebtCatId});
   const{error}=await q;
   busy=false;
   if(fail('debtMsg',error))return;
@@ -1040,16 +1062,30 @@ function searchNotes(){
 async function loadSettings(){
   editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
   editLabelId=null;$('labelSaveBtn').textContent='حفظ الفئة';
-  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls}]=await Promise.all([
+  editDebtCatId=null;$('debtCatSaveBtn').textContent='حفظ الفئة';
+  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc}]=await Promise.all([
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').order('sort_order'),
     db.from('ds_debts').select('*').eq('active',false).order('amount'),
     db.from('ds_habits').select('*').eq('active',false).order('sort_order'),
-    db.from('ds_note_labels').select('*').order('sort_order')
+    db.from('ds_note_labels').select('*').order('sort_order'),
+    db.from('ds_debt_categories').select('*').order('sort_order')
   ]);
-  allCats=cs||[];noteLabels=ls||[];
+  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];
+  $('stName').value=(st&&st.display_name)||'';
+  $('stRecvTitle').value=(st&&st.recv_title)||'';
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
   $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
+  $('debtCatList').innerHTML=debtCats.length?debtCats.map(c=>`
+    <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.name)}</b>${c.count_in_total?'':'<div class="meta">لا يُحسب في «متبقي ديوني»</div>'}${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
+      <span style="display:flex;gap:2px;align-items:center">
+        <button class="ico" style="color:${c.count_in_total?'var(--gold)':'var(--muted)'}" title="يُحسب في متبقي ديوني" onclick="toggleDebtCatCount(${c.id},${!c.count_in_total})">🧮</button>
+        <button class="ico" onclick="editDebtCat(${c.id})">✏️</button>
+        ${c.active
+          ?`<button class="ico" onclick="setDebtCatActive(${c.id},false)">🗄️</button>`
+          :`<button class="ico" onclick="setDebtCatActive(${c.id},true)">↩️</button>`}
+        <button class="del" onclick="delDebtCat(${c.id})">🗑️</button>
+      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — مثلاً: شخصية، عائلية، حكومية</div>';
   $('catList').innerHTML=allCats.length?allCats.map(c=>`
     <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -1084,9 +1120,62 @@ async function saveSettings(){
   const tRaw=$('stTarget').value.trim();
   const t=tRaw===''?null:parseFloat(tRaw);
   if(t!==null&&(isNaN(t)||t<=0))return msg('stMsg','أدخل وزن مستهدف صحيح أو اتركه فارغاً','err');
-  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t},{onConflict:'user_id'});
+  const dn=$('stName').value.trim()||null;
+  const rt=$('stRecvTitle').value.trim()||'المستحقات';
+  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t,display_name:dn,recv_title:rt},{onConflict:'user_id'});
   if(fail('stMsg',error))return;
+  if(dn){me.full_name=dn;$('gName').textContent=dn.split(' ')[0]}
   msg('stMsg','حُفظت الإعدادات ✅','ok');
+}
+function openDebtCatForm(){
+  const w=$('addDebtCatWrap'),opening=w.classList.contains('hidden');
+  w.classList.toggle('hidden');
+  if(opening){editDebtCatId=null;$('dcName').value='';$('debtCatSaveBtn').textContent='حفظ الفئة'}
+}
+function editDebtCat(id){
+  const c=debtCats.find(x=>x.id===id);if(!c)return;
+  editDebtCatId=id;
+  $('dcName').value=c.name;
+  $('debtCatSaveBtn').textContent='تحديث الفئة';
+  $('addDebtCatWrap').classList.remove('hidden');
+}
+async function saveDebtCat(){
+  const n=$('dcName').value.trim();
+  if(!n)return msg('debtCatMsg','اكتب اسم الفئة','err');
+  if(busy)return;busy=true;
+  const q=editDebtCatId
+    ? db.from('ds_debt_categories').update({name:n}).eq('id',editDebtCatId)
+    : db.from('ds_debt_categories').insert({name:n,sort_order:debtCats.length+1});
+  const{error}=await q;
+  busy=false;
+  if(fail('debtCatMsg',error))return;
+  $('dcName').value='';
+  $('addDebtCatWrap').classList.add('hidden');
+  loadSettings();
+}
+async function toggleDebtCatCount(id,val){
+  const{error}=await db.from('ds_debt_categories').update({count_in_total:val}).eq('id',id);
+  if(fail('debtCatMsg',error))return;
+  loadSettings();
+}
+async function setDebtCatActive(id,active){
+  if(!active){
+    const{count}=await db.from('ds_debts').select('*',{count:'exact',head:true}).eq('category_id',id).eq('active',true);
+    if(count>0)return msg('debtCatMsg','الفئة فيها ديون نشطة — انقلها أو أرشِفها أولاً','err');
+  }
+  const{error}=await db.from('ds_debt_categories').update({active}).eq('id',id);
+  if(fail('debtCatMsg',error))return;
+  loadSettings();
+}
+async function delDebtCat(id){
+  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
+  const{error}=await db.from('ds_debt_categories').delete().eq('id',id);
+  if(error){
+    if(error.code==='23503')msg('debtCatMsg','الفئة فيها ديون مسجّلة — انقلها أو احذفها أولاً','err');
+    else fail('debtCatMsg',error);
+    return;
+  }
+  loadSettings();
 }
 function openCatForm(){
   const w=$('addCatWrap'),opening=w.classList.contains('hidden');
