@@ -90,6 +90,15 @@
   .cchip{display:inline-block;width:26px;height:26px;border-radius:99px;margin:4px 3px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle}
   .cchip.active{border-color:var(--text)}
   textarea{font-family:inherit;line-height:1.8}
+  /* --- focus timer (v3.5) --- */
+  .tm-time{font-size:46px;font-weight:700;text-align:center;color:var(--em);font-variant-numeric:tabular-nums;letter-spacing:1px;margin:6px 0 2px;line-height:1.1}
+  .tm-phase{font-family:var(--serif);text-align:center;font-size:12.5px;color:var(--muted);margin-bottom:10px;min-height:18px}
+  /* --- checklist in notes (v3.5) --- */
+  #edBody ul[data-chk]{list-style:none;padding-inline-start:2px;margin:8px 0 12px}
+  #edBody ul[data-chk] li{position:relative;padding-inline-start:30px;margin-bottom:9px}
+  #edBody ul[data-chk] li::before{content:'☐';position:absolute;inset-inline-start:0;top:-2px;font-size:20px;color:var(--muted);cursor:pointer}
+  #edBody ul[data-chk] li[data-done="1"]::before{content:'☑';color:var(--em)}
+  #edBody ul[data-chk] li[data-done="1"]{color:var(--muted);text-decoration:line-through}
   /* --- rich editor (v3.3) --- */
   .toolbar{position:sticky;top:56px;z-index:40;display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px;margin:8px -6px;background:rgba(16,22,19,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line-soft);border-radius:11px}
   .tb{flex:none;width:auto;margin:0;padding:7px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line-soft);color:var(--text);font-size:12.5px;font-weight:400;box-shadow:none;cursor:pointer;transition:all .12s}
@@ -159,6 +168,20 @@
 
     <!-- ============ TODAY ============ -->
     <div id="paneToday">
+      <div class="card">
+        <h2>⏱️ التركيز</h2>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <span class="chip active" id="tmChipUp" onclick="setTimerMode('up')">⏱️ عدّاد</span>
+          <span class="chip" id="tmChipPomo" onclick="setTimerMode('pomo')">🍅 بومودورو</span>
+        </div>
+        <div class="tm-time" id="tmDisplay">00:00</div>
+        <div class="tm-phase" id="tmPhaseTxt">جاهز</div>
+        <div class="bar hidden" id="tmBarWrap" style="margin-bottom:10px"><div id="tmBar" style="width:0%"></div></div>
+        <div class="row2">
+          <button id="tmStart" style="margin:0" onclick="tmToggle()">ابدأ</button>
+          <button class="ghost" style="margin:0" onclick="tmReset()">تصفير</button>
+        </div>
+      </div>
       <div class="card">
         <h2>📋 مهام اليوم</h2>
         <div id="morningBrief" style="color:var(--muted);font-size:12px;margin:-10px 0 12px">—</div>
@@ -366,6 +389,7 @@
             <button class="tb" id="tbP" onmousedown="event.preventDefault()" onclick="fmtBlock('p')">نص</button>
             <button class="tb" id="tbB" style="font-weight:700" onmousedown="event.preventDefault()" onclick="fmtInline('bold')">B</button>
             <button class="tb" id="tbI" style="font-style:italic" onmousedown="event.preventDefault()" onclick="fmtInline('italic')">I</button>
+            <button class="tb" id="tbChk" onmousedown="event.preventDefault()" onclick="fmtChecklist()">☑️ مهام</button>
             <button class="tb" id="tbUL" onmousedown="event.preventDefault()" onclick="fmtInline('insertUnorderedList')">• قائمة</button>
             <button class="tb" id="tbOL" onmousedown="event.preventDefault()" onclick="fmtInline('insertOrderedList')">١. ترقيم</button>
             <button class="tb" onmousedown="event.preventDefault()" onclick="clearFmt()">✖ مسح</button>
@@ -477,6 +501,7 @@ const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',mon
 
 // --- rich text helpers (v3.3) ---
 const ALLOWED_TAGS=new Set(['P','BR','DIV','B','STRONG','I','EM','U','H2','H3','UL','OL','LI']);
+const KEEP_ATTRS={UL:['data-chk'],LI:['data-done']};
 function sanitizeHtml(html){
   const box=document.createElement('div');
   box.innerHTML=String(html||'');
@@ -484,7 +509,10 @@ function sanitizeHtml(html){
   const walk=root=>{
     [...root.children].forEach(el=>{
       walk(el);
-      [...el.attributes].forEach(a=>el.removeAttribute(a.name));
+      [...el.attributes].forEach(a=>{
+        const keep=(KEEP_ATTRS[el.tagName]||[]).includes(a.name);
+        if(!keep)el.removeAttribute(a.name);
+      });
       if(!ALLOWED_TAGS.has(el.tagName)){
         const p=el.parentNode;
         while(el.firstChild)p.insertBefore(el.firstChild,el);
@@ -1295,9 +1323,10 @@ function renderNotesList(){
   $('notesList').innerHTML=list.length?list.map(n=>{
     const l=labelById(n.label_id);
     const preview=stripHtml(n.body).slice(0,60);
+    const cs=chkStats(n.body);
     return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
       <div style="min-width:0"><b>${n.pinned?'📌 ':''}${l?`<span class="lbl-dot" style="background:${esc(l.color)}"></span>`:''}${esc(n.title)||'بدون عنوان'}</b>
-      <div class="meta">${preview?esc(preview)+' · ':''}${new Date(n.updated_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
+      <div class="meta">${cs?`☑️ ${cs.done}/${cs.total} · `:''}${preview?esc(preview)+' · ':''}${new Date(n.updated_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
     </div>`;
   }).join(''):'<div style="text-align:center;color:var(--muted);padding:12px;font-size:12.5px">لا ملاحظات هنا بعد</div>';
 }
@@ -1364,10 +1393,126 @@ function syncToolbar(){
   try{
     on('tbB',document.queryCommandState('bold'));
     on('tbI',document.queryCommandState('italic'));
+    const cli=selBlock('li');
+    on('tbChk',!!(cli&&cli.parentElement&&cli.parentElement.hasAttribute('data-chk')));
     on('tbUL',document.queryCommandState('insertUnorderedList'));
     on('tbOL',document.queryCommandState('insertOrderedList'));
   }catch(e){}
 }
+function selBlock(sel){
+  const s=window.getSelection();
+  if(!s||!s.rangeCount)return null;
+  let n=s.getRangeAt(0).startContainer;
+  if(n.nodeType===3)n=n.parentNode;
+  if(!n||!n.closest)return null;
+  const el=n.closest(sel);
+  return (el&&$('edBody').contains(el))?el:null;
+}
+function fmtChecklist(){
+  $('edBody').focus();
+  const li=selBlock('li');
+  const inChk=li&&li.parentElement&&li.parentElement.hasAttribute('data-chk');
+  if(inChk){
+    const ul=li.parentElement;
+    ul.removeAttribute('data-chk');
+    [...ul.querySelectorAll('li')].forEach(x=>x.removeAttribute('data-done'));
+    try{document.execCommand('insertUnorderedList',false,null)}catch(e){}
+  }else{
+    if(!li){try{document.execCommand('insertUnorderedList',false,null)}catch(e){}}
+    const ul=selBlock('ul');
+    if(ul){
+      ul.setAttribute('data-chk','1');
+      [...ul.querySelectorAll('li')].forEach(x=>{if(!x.hasAttribute('data-done'))x.setAttribute('data-done','0')});
+    }
+  }
+  noteDirty();syncToolbar();
+}
+function chkStats(html){
+  const box=document.createElement('div');
+  box.innerHTML=String(html||'');
+  const items=box.querySelectorAll('ul[data-chk] li');
+  if(!items.length)return null;
+  let done=0;
+  items.forEach(li=>{if(li.getAttribute('data-done')==='1')done++});
+  return{done,total:items.length};
+}
+
+// ============ FOCUS TIMER (no storage — resets on refresh) ============
+const POMO={work:25*60,brk:5*60};
+let tmMode='up',tmRunning=false,tmStartedAt=0,tmAcc=0,tmTick=null,tmPhase='work',tmDone=0,tmAudio=null;
+const tmElapsed=()=>tmAcc+(tmRunning?Date.now()-tmStartedAt:0);
+function fmtClock(ms){
+  const s=Math.max(0,Math.round(ms/1000));
+  const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+}
+function tmBeep(){
+  try{
+    tmAudio=tmAudio||new (window.AudioContext||window.webkitAudioContext)();
+    if(tmAudio.state==='suspended')tmAudio.resume();
+    [0,0.45].forEach(off=>{
+      const o=tmAudio.createOscillator(),g=tmAudio.createGain();
+      o.connect(g);g.connect(tmAudio.destination);
+      o.type='sine';o.frequency.value=880;
+      const t=tmAudio.currentTime+off;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.22,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
+      o.start(t);o.stop(t+0.4);
+    });
+  }catch(e){}
+  try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}
+}
+function setTimerMode(m){
+  if(tmMode===m)return;
+  tmMode=m;tmStop();tmAcc=0;tmPhase='work';
+  $('tmChipUp').classList.toggle('active',m==='up');
+  $('tmChipPomo').classList.toggle('active',m==='pomo');
+  tmRender();
+}
+function tmStop(){
+  if(tmRunning){tmAcc+=Date.now()-tmStartedAt;tmRunning=false}
+  if(tmTick){clearInterval(tmTick);tmTick=null}
+}
+function tmToggle(){
+  if(tmRunning){tmStop()}
+  else{
+    tmRunning=true;tmStartedAt=Date.now();
+    if(tmTick)clearInterval(tmTick);
+    tmTick=setInterval(tmRender,250);
+    try{tmAudio=tmAudio||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  }
+  tmRender();
+}
+function tmReset(){
+  tmStop();tmAcc=0;
+  if(tmMode==='pomo'){tmPhase='work';tmDone=0}
+  tmRender();
+}
+function tmComplete(){
+  tmStop();tmAcc=0;
+  tmBeep();
+  if(tmPhase==='work'){tmDone++;tmPhase='brk'}
+  else tmPhase='work';
+  tmRender();
+  $('tmPhaseTxt').textContent=tmPhase==='brk'?`انتهت الجلسة ✅ — خذ راحة ٥ دقائق · جلسات: ${tmDone}`:'انتهت الراحة ☕ — ارجع للتركيز';
+}
+function tmRender(){
+  if(tmMode==='up'){
+    $('tmDisplay').textContent=fmtClock(tmElapsed());
+    $('tmPhaseTxt').textContent=tmRunning?'يعمل...':(tmElapsed()?'متوقف':'جاهز');
+    $('tmBarWrap').classList.add('hidden');
+  }else{
+    const total=POMO[tmPhase]*1000,el=tmElapsed();
+    if(el>=total)return tmComplete();
+    $('tmDisplay').textContent=fmtClock(total-el);
+    $('tmPhaseTxt').textContent=(tmPhase==='work'?'🍅 تركيز':'☕ راحة')+(tmDone?` · جلسات: ${tmDone}`:'');
+    $('tmBarWrap').classList.remove('hidden');
+    $('tmBar').style.width=Math.min(100,el/total*100)+'%';
+  }
+  $('tmStart').textContent=tmRunning?'إيقاف مؤقت ⏸':'ابدأ';
+}
+
 function noteDirty(){
   $('saveState').textContent='...';$('saveState').style.color='var(--muted)';
   clearTimeout(saveTimer);
@@ -1704,6 +1849,26 @@ $('edBody').addEventListener('paste',e=>{
   const t=((e.clipboardData||window.clipboardData).getData('text/plain')||'');
   try{document.execCommand('insertText',false,t)}catch(err){}
   noteDirty();
+});
+$('edBody').addEventListener('click',e=>{
+  const li=e.target&&e.target.closest?e.target.closest('li'):null;
+  if(!li||!li.parentElement||!li.parentElement.hasAttribute('data-chk'))return;
+  const r=li.getBoundingClientRect();
+  const rtl=getComputedStyle($('edBody')).direction==='rtl';
+  const hit=rtl?(e.clientX>r.right-34):(e.clientX<r.left+34);
+  if(!hit)return;
+  e.preventDefault();
+  li.setAttribute('data-done',li.getAttribute('data-done')==='1'?'0':'1');
+  noteDirty();
+});
+$('edBody').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const li=selBlock('li');
+  if(!li||!li.parentElement||!li.parentElement.hasAttribute('data-chk'))return;
+  setTimeout(()=>{
+    const l2=selBlock('li');
+    if(l2&&l2.parentElement&&l2.parentElement.hasAttribute('data-chk'))l2.setAttribute('data-done','0');
+  },0);
 });
 db.auth.getSession().then(({data:{session}})=>{if(session)boot()});
 </script>
