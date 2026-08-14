@@ -90,6 +90,21 @@
   .cchip{display:inline-block;width:26px;height:26px;border-radius:99px;margin:4px 3px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle}
   .cchip.active{border-color:var(--text)}
   textarea{font-family:inherit;line-height:1.8}
+  /* --- rich editor (v3.3) --- */
+  .toolbar{position:sticky;top:56px;z-index:40;display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px;margin:8px -6px;background:rgba(16,22,19,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line-soft);border-radius:11px}
+  .tb{flex:none;width:auto;margin:0;padding:7px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line-soft);color:var(--text);font-size:12.5px;font-weight:400;box-shadow:none;cursor:pointer;transition:all .12s}
+  .tb:active{transform:none}
+  .tb.on{border-color:var(--em);color:var(--em);background:rgba(111,217,166,.12);font-weight:700}
+  .tb.h{font-family:var(--serif);font-weight:700}
+  #edBody{width:100%;min-height:46vh;padding:14px;border-radius:11px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:16px;line-height:1.9;text-align:right;overflow-y:auto}
+  #edBody:focus{outline:none;border-color:var(--em)}
+  #edBody:empty:before{content:attr(data-ph);color:var(--muted)}
+  #edBody h2{font-family:var(--serif);font-size:21px;font-weight:700;color:var(--em);margin:14px 0 6px}
+  #edBody h3{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--em-hi);margin:12px 0 5px}
+  #edBody p{margin:0 0 8px}
+  #edBody ul,#edBody ol{padding-inline-start:24px;margin:6px 0 10px}
+  #edBody li{margin-bottom:5px}
+  #edBody b,#edBody strong{color:#fff;font-weight:700}
   .sec-h{font-family:var(--serif);font-size:14.5px;margin:20px 0 9px;color:var(--em);letter-spacing:.3px;font-weight:600;display:flex;align-items:center;gap:8px}
   .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
   .exit{background:rgba(7,11,9,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line-soft);color:#cfe0d6;width:auto;padding:8px 14px;margin:0;font-size:12px;font-weight:400;box-shadow:none}
@@ -98,8 +113,6 @@
   .row2{display:flex;gap:8px}
   .row2 > *{flex:1}
   .signoff{font-family:var(--serif);text-align:center;color:var(--muted);font-size:12.5px;margin:28px 0 6px;letter-spacing:.3px}
-  .sumline{display:flex;justify-content:space-around;margin-top:12px;font-size:13px;font-variant-numeric:tabular-nums}
-  .sumline b{font-size:16px}
   @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -192,19 +205,6 @@
         <div><div class="num" id="mLeak">—</div><div class="lbl">مصاريف الشهر</div></div>
       </div>
 
-      <div class="card" style="padding:16px 18px">
-        <div id="mpChips" style="display:flex;gap:6px;justify-content:center">
-          <span class="chip active" onclick="setMoneyPeriod('day',this)">يوم</span>
-          <span class="chip" onclick="setMoneyPeriod('week',this)">أسبوع</span>
-          <span class="chip" onclick="setMoneyPeriod('month',this)">شهر</span>
-        </div>
-        <div class="sumline">
-          <span style="color:var(--muted)">مدخول <b id="sumInc" style="color:var(--green)">—</b></span>
-          <span style="color:var(--muted)">مصروف <b id="sumExp" style="color:var(--red)">—</b></span>
-          <span style="color:var(--muted)">الفرق <b id="sumNet">—</b></span>
-        </div>
-      </div>
-
       <div class="card">
         <h2>💳 الديون</h2>
         <div id="debtCatChips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
@@ -242,17 +242,6 @@
         </div>
         <div id="expList"></div>
         <div class="msg" id="expMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>💵 مداخيل اليوم (عدا الديون)</h2>
-        <div id="incChips" style="margin-top:2px"></div>
-        <div class="row2" style="margin-top:8px">
-          <input type="tel" id="incAmt" inputmode="decimal" placeholder="المبلغ">
-          <button id="incSaveBtn" style="margin:0;width:90px" onclick="saveInc()">سجّل</button>
-        </div>
-        <div id="incList"></div>
-        <div class="msg" id="incMsg"></div>
       </div>
     </div>
 
@@ -371,7 +360,17 @@
           </div>
           <input type="text" id="edTitle" placeholder="العنوان" oninput="noteDirty()" style="font-weight:700">
           <div id="edLabels" style="margin-top:8px"></div>
-          <textarea id="edBody" placeholder="اكتب هنا..." oninput="noteDirty()" style="margin-top:8px;min-height:46vh;resize:vertical"></textarea>
+          <div class="toolbar" id="edToolbar">
+            <button class="tb h" id="tbH2" onmousedown="event.preventDefault()" onclick="fmtBlock('h2')">عنوان</button>
+            <button class="tb h" id="tbH3" onmousedown="event.preventDefault()" onclick="fmtBlock('h3')">فرعي</button>
+            <button class="tb" id="tbP" onmousedown="event.preventDefault()" onclick="fmtBlock('p')">نص</button>
+            <button class="tb" id="tbB" style="font-weight:700" onmousedown="event.preventDefault()" onclick="fmtInline('bold')">B</button>
+            <button class="tb" id="tbI" style="font-style:italic" onmousedown="event.preventDefault()" onclick="fmtInline('italic')">I</button>
+            <button class="tb" id="tbUL" onmousedown="event.preventDefault()" onclick="fmtInline('insertUnorderedList')">• قائمة</button>
+            <button class="tb" id="tbOL" onmousedown="event.preventDefault()" onclick="fmtInline('insertOrderedList')">١. ترقيم</button>
+            <button class="tb" onmousedown="event.preventDefault()" onclick="clearFmt()">✖ مسح</button>
+          </div>
+          <div id="edBody" contenteditable="true" dir="rtl" data-ph="اكتب هنا..." oninput="noteDirty()" onkeyup="syncToolbar()" onmouseup="syncToolbar()" onfocus="syncToolbar()"></div>
         </div>
       </div>
     </div>
@@ -418,17 +417,6 @@
           <button id="catSaveBtn" onclick="saveCat()">حفظ الفئة</button>
         </div>
         <div class="msg" id="catMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>💵 فئات المداخيل</h2>
-        <div id="incCatList"></div>
-        <button class="ghost" onclick="openIncCatForm()">＋ فئة جديدة</button>
-        <div id="addIncCatWrap" class="hidden">
-          <div class="row2"><input type="text" id="niIcon" placeholder="💰" style="width:70px;flex:none;text-align:center"><input type="text" id="niName" placeholder="اسم الفئة"></div>
-          <button id="incCatSaveBtn" onclick="saveIncCat()">حفظ الفئة</button>
-        </div>
-        <div class="msg" id="incCatMsg"></div>
       </div>
 
       <div class="card">
@@ -480,10 +468,40 @@ const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
 const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',money:'التسرّب يُرى قبل أن يُغرق.',body:'الالتزام يُوثَّق هنا، والتمرين في Lyfta.',habits:'القليل الدائم يغلب الكثير المنقطع.',notes:'أكتب لأرى ما أفكر فيه.',settings:'هنا تُضبط الأدوات.'};
 
+// --- rich text helpers (v3.3) ---
+const ALLOWED_TAGS=new Set(['P','BR','DIV','B','STRONG','I','EM','U','H2','H3','UL','OL','LI']);
+function sanitizeHtml(html){
+  const box=document.createElement('div');
+  box.innerHTML=String(html||'');
+  box.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(n=>n.remove());
+  const walk=root=>{
+    [...root.children].forEach(el=>{
+      walk(el);
+      [...el.attributes].forEach(a=>el.removeAttribute(a.name));
+      if(!ALLOWED_TAGS.has(el.tagName)){
+        const p=el.parentNode;
+        while(el.firstChild)p.insertBefore(el.firstChild,el);
+        p.removeChild(el);
+      }
+    });
+  };
+  walk(box);
+  return box.innerHTML;
+}
+function stripHtml(html){
+  const box=document.createElement('div');
+  box.innerHTML=String(html||'');
+  return (box.textContent||'').replace(/\s+/g,' ').trim();
+}
+function looksLikeHtml(s){return /<(p|div|br|h2|h3|ul|ol|li|b|strong|i|em|u)\b/i.test(String(s||''))}
+function textToHtml(t){
+  const lines=String(t||'').split('\n');
+  return lines.map(l=>l.trim()?`<p>${esc(l)}</p>`:'<p><br></p>').join('');
+}
+
 let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], debtCats=[], paymentsByDebt={};
 let curDebtCatId=null, chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
 let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, editDebtCatId=null, tasksCache=[];
-let incs=[], incCats=[], allIncCats=[], chosenIncCatId=null, editIncId=null, editIncCatId=null, moneyPeriod='day';
 let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
 let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
 let bodySets=[], bodyNut=[], bodyTargets={}, bodyWin=56, selEx=null, volChartObj=null, exChartObj=null, calChartObj=null;
@@ -651,35 +669,23 @@ async function toggleHabit(id,isDone,src){
 
 // ============ MONEY ============
 function resetMoneyForms(){
-  editDebtId=null;editRecvId=null;editExpId=null;editIncId=null;
+  editDebtId=null;editRecvId=null;editExpId=null;
   $('debtSaveBtn').textContent='حفظ الدين';
   $('recvSaveBtn').textContent='حفظ المستحق';
   $('expSaveBtn').textContent='سجّل';
-  $('incSaveBtn').textContent='سجّل';
-}
-function weekStartStr(){
-  const t=new Date();
-  const off=(t.getDay()+1)%7; // Saturday-start week (Sat=0 offset)
-  const s=new Date(t);s.setDate(t.getDate()-off);
-  return dstr(s);
 }
 async function loadMoney(){
   resetMoneyForms();
-  const monthStart=curMonth()+'-01';
-  const ws=weekStartStr();
-  const fetchFrom=ws<monthStart?ws:monthStart; // week can start before the 1st
-  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc},{data:inc},{data:ic}]=await Promise.all([
+  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc}]=await Promise.all([
     db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
     db.from('ds_payments').select('id,debt_id,amount,paid_on,note'),
     db.from('ds_receivables').select('*').order('created_at'),
-    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',fetchFrom).order('created_at',{ascending:false}),
+    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order'),
-    db.from('ds_income').select('*, ds_income_categories(name,icon)').gte('received_on',fetchFrom).order('created_at',{ascending:false}),
-    db.from('ds_income_categories').select('*').eq('active',true).order('sort_order')
+    db.from('ds_debt_categories').select('*').order('sort_order')
   ]);
-  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[]; incs=inc||[]; incCats=ic||[];
+  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[];
   paymentsByDebt={};
   (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
   Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
@@ -689,18 +695,14 @@ async function loadMoney(){
   const citOff=new Set(debtCats.filter(c=>!c.count_in_total).map(c=>c.id));
   const ownLeft=debts.filter(d=>!citOff.has(d.category_id)).reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
   const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
-  const monthExps=exps.filter(e=>e.spent_on>=monthStart);
-  const leakTotal=monthExps.reduce((a,e)=>a+Number(e.amount),0);
+  const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
   $('mDebtLeft').textContent=fmt(ownLeft);
   $('mRecv').textContent=fmt(recvPend);
   $('mLeak').textContent=fmt(leakTotal);
   $('recvTitle').textContent=(st&&st.recv_title)||'المستحقات';
   if(!expCats.find(c=>c.id===chosenExpCatId))
     chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
-  if(!incCats.find(c=>c.id===chosenIncCatId))
-    chosenIncCatId=(incCats.find(c=>c.name==='أخرى')||incCats[0]||{}).id||null;
   renderExpChips();
-  renderIncChips();
   renderDebtChips();
   renderDebts();
   $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
@@ -717,49 +719,13 @@ async function loadMoney(){
   const pct=Math.min(100,budget>0?leakTotal/budget*100:0);
   $('leakBar').style.width=pct+'%';
   $('leakBar').style.background=pct>=100?'var(--red)':'';
-  $('expList').innerHTML=monthExps.slice(0,6).map(e=>{
+  $('expList').innerHTML=exps.slice(0,6).map(e=>{
     const c=e.ds_expense_categories||{};
     return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${e.spent_on}</div></div>
       <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
       <button class="ico" onclick="editExp(${e.id})">✏️</button>
       <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`;
   }).join('');
-  $('incList').innerHTML=incs.filter(i=>i.received_on>=monthStart).slice(0,6).map(i=>{
-    const c=i.ds_income_categories||{};
-    return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${i.received_on}</div></div>
-      <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--green)">+${fmt(i.amount)}</b>
-      <button class="ico" onclick="editInc(${i.id})">✏️</button>
-      <button class="del" onclick="delInc(${i.id})">🗑️</button></span></div>`;
-  }).join('');
-  updateSummaryBar();
-}
-function periodRange(){
-  if(moneyPeriod==='day')return[todayStr(),todayStr()];
-  if(moneyPeriod==='week'){
-    const s=weekStartStr();
-    const e=new Date(s+'T00:00:00');e.setDate(e.getDate()+6);
-    return[s,dstr(e)];
-  }
-  const t=new Date();
-  const s=new Date(t.getFullYear(),t.getMonth(),1),e=new Date(t.getFullYear(),t.getMonth()+1,0);
-  return[dstr(s),dstr(e)];
-}
-function updateSummaryBar(){
-  const[f,t]=periodRange();
-  const i=incs.filter(x=>x.received_on>=f&&x.received_on<=t).reduce((a,x)=>a+Number(x.amount),0);
-  const e=exps.filter(x=>x.spent_on>=f&&x.spent_on<=t).reduce((a,x)=>a+Number(x.amount),0);
-  const n=i-e;
-  $('sumInc').textContent=fmt(i);
-  $('sumExp').textContent=fmt(e);
-  const el=$('sumNet');
-  el.textContent=(n>=0?'+':'−')+fmt(Math.abs(n));
-  el.style.color=n>=0?'var(--green)':'var(--red)';
-}
-function setMoneyPeriod(p,el){
-  moneyPeriod=p;
-  document.querySelectorAll('#mpChips .chip').forEach(x=>x.classList.remove('active'));
-  el.classList.add('active');
-  updateSummaryBar();
 }
 function renderDebtChips(){
   const act=debtCats.filter(c=>c.active);
@@ -774,12 +740,6 @@ function renderExpChips(){
   ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِفها من ⚙️ الإعدادات</div>';
 }
 function expCat(id){chosenExpCatId=id;renderExpChips()}
-function renderIncChips(){
-  $('incChips').innerHTML=incCats.length?incCats.map(c=>
-    `<span class="chip ${c.id===chosenIncCatId?'active':''}" onclick="incCat(${c.id})">${esc(c.icon)} ${esc(c.name)}</span>`
-  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — شغّل سكربت SQL أولاً أو أضِفها من ⚙️ الإعدادات</div>';
-}
-function incCat(id){chosenIncCatId=id;renderIncChips()}
 function renderDebts(){
   if(!curDebtCatId){$('debtsList').innerHTML='<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">أضِف فئة ديون أولاً من ⚙️</div>';return}
   const list=debts.filter(d=>d.category_id===curDebtCatId);
@@ -922,35 +882,6 @@ async function delExp(id){
   if(fail('expMsg',error))return;
   loadMoney();
 }
-function editInc(id){
-  const e=incs.find(x=>x.id===id);if(!e)return;
-  editIncId=id;
-  $('incAmt').value=e.amount;
-  chosenIncCatId=e.category_id;
-  renderIncChips();
-  $('incSaveBtn').textContent='تحديث';
-}
-async function saveInc(){
-  const a=parseFloat($('incAmt').value);
-  if(isNaN(a)||a<=0)return msg('incMsg','أدخل المبلغ','err');
-  if(!chosenIncCatId)return msg('incMsg','أضِف فئة من ⚙️ الإعدادات أولاً','err');
-  if(busy)return;busy=true;
-  const q=editIncId
-    ? db.from('ds_income').update({amount:a,category_id:chosenIncCatId}).eq('id',editIncId)
-    : db.from('ds_income').insert({amount:a,category_id:chosenIncCatId,received_on:todayStr()});
-  const{error}=await q;
-  busy=false;
-  if(fail('incMsg',error))return;
-  $('incAmt').value='';
-  loadMoney();
-}
-async function delInc(id){
-  if(!confirm('حذف هذا المدخول؟'))return;
-  const{error}=await db.from('ds_income').delete().eq('id',id);
-  if(fail('incMsg',error))return;
-  loadMoney();
-}
-
 // ============ BODY ============
 async function fetchAll(table,cols,orderCol){
   let out=[],from=0;const page=1000;
@@ -1356,7 +1287,7 @@ function renderNotesList(){
   list=list.slice().sort((a,b)=>(b.pinned-a.pinned)||b.updated_at.localeCompare(a.updated_at));
   $('notesList').innerHTML=list.length?list.map(n=>{
     const l=labelById(n.label_id);
-    const preview=(n.body||'').split('\n')[0].slice(0,60);
+    const preview=stripHtml(n.body).slice(0,60);
     return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
       <div style="min-width:0"><b>${n.pinned?'📌 ':''}${l?`<span class="lbl-dot" style="background:${esc(l.color)}"></span>`:''}${esc(n.title)||'بدون عنوان'}</b>
       <div class="meta">${preview?esc(preview)+' · ':''}${new Date(n.updated_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
@@ -1376,11 +1307,15 @@ function openNote(id){
   const n=allNotes.find(x=>x.id===id);if(!n)return;
   if(!curFolder||curFolder.id!==n.folder_id)curFolder=noteFolders.find(f=>f.id===n.folder_id);
   curNote=n;
-  $('edTitle').value=n.title;$('edBody').value=n.body;
+  $('edTitle').value=n.title;
+  const raw=n.body||'';
+  $('edBody').innerHTML=raw?(looksLikeHtml(raw)?sanitizeHtml(raw):textToHtml(raw)):'';
   renderEdLabels();
   $('pinBtn').style.color=n.pinned?'var(--gold)':'var(--muted)';
   $('saveState').textContent='محفوظ ✓';$('saveState').style.color='var(--muted)';
   showNotesView('nvEditor');
+  try{document.execCommand('defaultParagraphSeparator',false,'p')}catch(e){}
+  syncToolbar();
 }
 function renderEdLabels(){
   $('edLabels').innerHTML=noteLabels.map(l=>
@@ -1393,6 +1328,39 @@ async function setNoteLabel(id){
   if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
   curNote.label_id=id;renderEdLabels();
 }
+// --- toolbar ---
+function fmtBlock(tag){
+  $('edBody').focus();
+  try{document.execCommand('formatBlock',false,'<'+tag.toUpperCase()+'>')}catch(e){}
+  noteDirty();syncToolbar();
+}
+function fmtInline(cmd){
+  $('edBody').focus();
+  try{document.execCommand(cmd,false,null)}catch(e){}
+  noteDirty();syncToolbar();
+}
+function clearFmt(){
+  $('edBody').focus();
+  try{
+    document.execCommand('removeFormat',false,null);
+    document.execCommand('formatBlock',false,'<P>');
+  }catch(e){}
+  noteDirty();syncToolbar();
+}
+function syncToolbar(){
+  let block='';
+  try{block=String(document.queryCommandValue('formatBlock')||'').toLowerCase()}catch(e){}
+  const on=(id,v)=>$(id)&&$(id).classList.toggle('on',!!v);
+  on('tbH2',block==='h2');
+  on('tbH3',block==='h3');
+  on('tbP',block==='p'||block==='div'||block==='');
+  try{
+    on('tbB',document.queryCommandState('bold'));
+    on('tbI',document.queryCommandState('italic'));
+    on('tbUL',document.queryCommandState('insertUnorderedList'));
+    on('tbOL',document.queryCommandState('insertOrderedList'));
+  }catch(e){}
+}
 function noteDirty(){
   $('saveState').textContent='...';$('saveState').style.color='var(--muted)';
   clearTimeout(saveTimer);
@@ -1401,7 +1369,7 @@ function noteDirty(){
 async function doSaveNote(){
   if(!curNote)return;
   clearTimeout(saveTimer);saveTimer=null;
-  const payload={title:$('edTitle').value,body:$('edBody').value,updated_at:new Date().toISOString()};
+  const payload={title:$('edTitle').value,body:sanitizeHtml($('edBody').innerHTML),updated_at:new Date().toISOString()};
   const{error}=await db.from('ds_notes').update(payload).eq('id',curNote.id);
   if(error){$('saveState').textContent='⚠️ لم يُحفظ: '+error.message;$('saveState').style.color='var(--red)';return}
   Object.assign(curNote,payload);
@@ -1427,7 +1395,7 @@ async function delNote(){
 }
 async function notesBack(to){
   flushNoteSave();
-  if(to==='nvNotes'&&curNote&&!$('edTitle').value.trim()&&!$('edBody').value.trim()){
+  if(to==='nvNotes'&&curNote&&!$('edTitle').value.trim()&&!stripHtml($('edBody').innerHTML)){
     await db.from('ds_notes').delete().eq('id',curNote.id);
     allNotes=allNotes.filter(x=>x.id!==curNote.id);
   }
@@ -1439,7 +1407,7 @@ function searchNotes(){
   const q=$('noteSearch').value.trim().toLowerCase();
   if(!q){$('searchResults').innerHTML='';$('foldersList').style.display='';return}
   $('foldersList').style.display='none';
-  const hits=allNotes.filter(n=>(n.title||'').toLowerCase().includes(q)||(n.body||'').toLowerCase().includes(q)).slice(0,20);
+  const hits=allNotes.filter(n=>(n.title||'').toLowerCase().includes(q)||stripHtml(n.body).toLowerCase().includes(q)).slice(0,20);
   $('searchResults').innerHTML=hits.length?hits.map(n=>{
     const f=noteFolders.find(x=>x.id===n.folder_id);
     return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
@@ -1453,17 +1421,15 @@ async function loadSettings(){
   editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
   editLabelId=null;$('labelSaveBtn').textContent='حفظ الفئة';
   editDebtCatId=null;$('debtCatSaveBtn').textContent='حفظ الفئة';
-  editIncCatId=null;$('incCatSaveBtn').textContent='حفظ الفئة';
-  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc},{data:ic}]=await Promise.all([
+  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc}]=await Promise.all([
     db.from('ds_settings').select('*').maybeSingle(),
     db.from('ds_expense_categories').select('*').order('sort_order'),
     db.from('ds_debts').select('*').eq('active',false).order('amount'),
     db.from('ds_habits').select('*').eq('active',false).order('sort_order'),
     db.from('ds_note_labels').select('*').order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order'),
-    db.from('ds_income_categories').select('*').order('sort_order')
+    db.from('ds_debt_categories').select('*').order('sort_order')
   ]);
-  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];allIncCats=ic||[];
+  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];
   $('stName').value=(st&&st.display_name)||'';
   $('stRecvTitle').value=(st&&st.recv_title)||'';
   $('stBudget').value=st?Number(st.monthly_leak_budget):'';
@@ -1490,17 +1456,6 @@ async function loadSettings(){
           :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
         <button class="del" onclick="delCat(${c.id})">🗑️</button>
       </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
-  $('incCatList').innerHTML=allIncCats.length?allIncCats.map(c=>{
-    const locked=c.name==='أخرى';
-    return `<div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${locked?'<div class="meta">فئة ثابتة 🔒</div>':''}${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
-      ${locked?'':`<span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="editIncCat(${c.id})">✏️</button>
-        ${c.active
-          ?`<button class="ico" onclick="setIncCatActive(${c.id},false)">🗄️</button>`
-          :`<button class="ico" onclick="setIncCatActive(${c.id},true)">↩️</button>`}
-        <button class="del" onclick="delIncCat(${c.id})">🗑️</button>
-      </span>`}</div>`;
-  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — شغّل سكربت SQL في Supabase أولاً</div>';
   $('labelList').innerHTML=noteLabels.length?noteLabels.map(l=>`
     <div class="item"><div><b><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</b></div>
       <span style="display:flex;gap:2px;align-items:center">
@@ -1624,56 +1579,6 @@ async function delCat(id){
   }
   loadSettings();
 }
-function openIncCatForm(){
-  const w=$('addIncCatWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editIncCatId=null;$('niIcon').value='';$('niName').value='';$('incCatSaveBtn').textContent='حفظ الفئة'}
-}
-function editIncCat(id){
-  const c=allIncCats.find(x=>x.id===id);if(!c)return;
-  if(c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
-  editIncCatId=id;
-  $('niIcon').value=c.icon||'';$('niName').value=c.name;
-  $('incCatSaveBtn').textContent='تحديث الفئة';
-  $('addIncCatWrap').classList.remove('hidden');
-}
-async function saveIncCat(){
-  const n=$('niName').value.trim(),ic=$('niIcon').value.trim()||'💰';
-  if(!n)return msg('incCatMsg','اكتب اسم الفئة','err');
-  if(editIncCatId){
-    const cur=allIncCats.find(x=>x.id===editIncCatId);
-    if(cur&&cur.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
-  }
-  if(busy)return;busy=true;
-  const q=editIncCatId
-    ? db.from('ds_income_categories').update({name:n,icon:ic}).eq('id',editIncCatId)
-    : db.from('ds_income_categories').insert({name:n,icon:ic,sort_order:allIncCats.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('incCatMsg',error))return;
-  $('niName').value='';$('niIcon').value='';
-  $('addIncCatWrap').classList.add('hidden');
-  loadSettings();
-}
-async function setIncCatActive(id,active){
-  const c=allIncCats.find(x=>x.id===id);
-  if(c&&c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُؤرشَف','err');
-  const{error}=await db.from('ds_income_categories').update({active}).eq('id',id);
-  if(fail('incCatMsg',error))return;
-  loadSettings();
-}
-async function delIncCat(id){
-  const c=allIncCats.find(x=>x.id===id);
-  if(c&&c.name==='أخرى')return msg('incCatMsg','فئة «أخرى» ثابتة — لا تُعدَّل ولا تُحذف','err');
-  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
-  const{error}=await db.from('ds_income_categories').delete().eq('id',id);
-  if(error){
-    if(error.code==='23503')msg('incCatMsg','الفئة مستخدمة في مداخيل مسجّلة — أرشِفها بدلاً من الحذف','err');
-    else fail('incCatMsg',error);
-    return;
-  }
-  loadSettings();
-}
 function renderColorChips(){
   $('nlColors').innerHTML=LABEL_COLORS.map(c=>
     `<span class="cchip ${chosenLabelColor===c?'active':''}" style="background:${c}" onclick="pickLabelColor('${c}')"></span>`
@@ -1734,9 +1639,15 @@ async function hardDelHabit(id){
   loadSettings();
 }
 
-// Enter keys + session restore
+// Enter keys + paste-as-plain-text + session restore
 $('last4').addEventListener('keydown',e=>{if(e.key==='Enter')$('pin').focus()});
 $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+$('edBody').addEventListener('paste',e=>{
+  e.preventDefault();
+  const t=((e.clipboardData||window.clipboardData).getData('text/plain')||'');
+  try{document.execCommand('insertText',false,t)}catch(err){}
+  noteDirty();
+});
 db.auth.getSession().then(({data:{session}})=>{if(session)boot()});
 </script>
 </body>
