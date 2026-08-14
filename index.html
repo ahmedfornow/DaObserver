@@ -439,6 +439,13 @@
         <div id="archHabits"></div>
         <div class="msg" id="archMsg"></div>
       </div>
+
+      <div class="card">
+        <h2>🛟 نسخة احتياطية</h2>
+        <p style="font-size:12.5px;color:var(--muted);line-height:1.9;margin-bottom:4px">ملف واحد فيه كل بياناتك — ديون، سدادات، مصاريف، مهام، عادات، ملاحظات، تمارين وتغذية.<br>احفظه في جهازك، ولا ترفعه على GitHub.</p>
+        <button id="backupBtn" onclick="exportBackup()">تصدير كل بياناتي (JSON)</button>
+        <div class="msg" id="backupMsg"></div>
+      </div>
     </div>
 
     <div class="signoff">عينك على يومك 👁️ · ٢٠٢٦</div>
@@ -1637,6 +1644,56 @@ async function hardDelHabit(id){
   const{error}=await db.from('ds_habits').delete().eq('id',id);
   if(fail('archMsg',error))return;
   loadSettings();
+}
+
+// ============ BACKUP EXPORT ============
+const BACKUP_TABLES=[
+  ['ds_settings','user_id'],['ds_debt_categories','id'],['ds_debts','id'],['ds_payments','id'],
+  ['ds_receivables','id'],['ds_expense_categories','id'],['ds_expenses','id'],['ds_tasks','id'],
+  ['ds_habits','id'],['ds_habit_logs','on_date'],['ds_weights','on_date'],['ds_workouts','on_date'],
+  ['ds_note_folders','id'],['ds_note_labels','id'],['ds_notes','id'],
+  ['ds_workout_sets','id'],['ds_nutrition_days','on_date']
+];
+async function dumpTable(name,orderCol){
+  let out=[],from=0;const page=1000;
+  while(true){
+    let q=db.from(name).select('*').range(from,from+page-1);
+    if(orderCol)q=q.order(orderCol);
+    const{data,error}=await q;
+    if(error){
+      if(orderCol)return dumpTable(name,null);
+      throw new Error(name+' — '+error.message);
+    }
+    out=out.concat(data||[]);
+    if(!data||data.length<page)break;
+    from+=page;
+  }
+  return out;
+}
+async function exportBackup(){
+  if(busy)return;busy=true;
+  $('backupBtn').disabled=true;
+  try{
+    const dump={app:'DaObserver',version:'3.4',exported_at:new Date().toISOString(),user_id:me.id,tables:{}};
+    let total=0;
+    for(const[name,col]of BACKUP_TABLES){
+      msg('backupMsg','جاري التصدير... '+name,'ok');
+      const rows=await dumpTable(name,col);
+      dump.tables[name]=rows;
+      total+=rows.length;
+    }
+    const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`daobserver-backup-${todayStr()}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    msg('backupMsg',`حُفظت النسخة ✅ · ${BACKUP_TABLES.length} جدول · ${fmt(total)} سجل`,'ok');
+  }catch(e){
+    msg('backupMsg','تعذّر التصدير: '+e.message,'err');
+  }finally{
+    busy=false;$('backupBtn').disabled=false;
+  }
 }
 
 // Enter keys + paste-as-plain-text + session restore
