@@ -163,6 +163,7 @@
       <div class="tab" id="tabBody" onclick="showTab('body')">💪 الجسم</div>
       <div class="tab" id="tabHabits" onclick="showTab('habits')">🔥 العادات</div>
       <div class="tab" id="tabNotes" onclick="showTab('notes')">📝 العصف</div>
+      <div class="tab" id="tabLeads" onclick="showTab('leads')">🎯 العملاء</div>
     </div>
     <div class="motto" id="tabMotto">—</div>
 
@@ -400,6 +401,58 @@
     </div>
 
     <!-- ============ SETTINGS ============ -->
+
+    <!-- ============ العملاء المرتقبون (LEADS) ============ -->
+    <div id="paneLeads" class="hidden">
+      <div class="card">
+        <h2>🎯 العملاء المرتقبون</h2>
+        <div id="ldStats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="ldFilters" style="margin-bottom:12px"></div>
+        <div id="ldList"></div>
+        <button class="ghost" onclick="ldToggleForm()">＋ إضافة عملاء</button>
+        <div id="ldFormWrap" class="hidden" style="margin-top:10px">
+          <div class="row2">
+            <input type="text" id="ldName" placeholder="اسم النشاط">
+            <input type="text" id="ldCity" placeholder="المدينة" style="max-width:130px">
+          </div>
+          <div class="row2" style="margin-top:8px">
+            <input type="tel" id="ldPhone" placeholder="05XXXXXXXX" inputmode="tel">
+            <select id="ldCase"></select>
+          </div>
+          <button id="ldSaveBtn" onclick="ldSave()" style="margin-top:8px">حفظ العميل</button>
+          <div style="border-top:1px solid var(--line-soft);margin:14px 0 10px"></div>
+          <div class="meta" style="margin-bottom:6px">أو الصق دفعة — سطر لكل عميل: الاسم | المدينة | الجوال</div>
+          <textarea id="ldBulk" rows="4" placeholder="كافيه المراسم | بريدة | 0551234567"></textarea>
+          <button class="ghost" onclick="ldBulkAdd()" style="margin-top:8px">إضافة القائمة كاملة</button>
+        </div>
+        <div class="msg" id="ldMsg"></div>
+      </div>
+
+      <div class="card hidden" id="ldPanel">
+        <h2 id="ldPanelName">—</h2>
+        <div class="meta" id="ldPanelSub" style="margin-bottom:12px"></div>
+        <div class="row2">
+          <select id="ldPanelCase" onchange="ldPanelRender()"></select>
+          <select id="ldPanelFlow" onchange="ldPanelRender()"></select>
+        </div>
+        <div id="ldPanelTip" class="meta" style="margin:8px 0"></div>
+        <div id="ldPanelText" style="background:var(--card2);border:1px dashed var(--line);border-radius:11px;padding:14px;white-space:pre-wrap;line-height:1.95;font-size:13.5px;margin-bottom:12px"></div>
+        <div class="row2">
+          <button onclick="ldSendWa()">📲 واتساب + تسجيل</button>
+          <button class="ghost" onclick="ldCopyMsg()">نسخ</button>
+        </div>
+        <div class="row2" style="margin-top:10px">
+          <select id="ldPanelStage" onchange="ldSetStage(this.value)"></select>
+          <input type="date" id="ldPanelFu" onchange="ldSetFollowup(this.value)">
+        </div>
+        <div style="border-top:1px solid var(--line-soft);margin:14px 0 10px"></div>
+        <div class="meta" style="margin-bottom:8px">السجل</div>
+        <div id="ldTimeline"></div>
+        <button class="ghost" onclick="ldClose()" style="margin-top:10px">إغلاق</button>
+        <div class="msg" id="ldPanelMsg"></div>
+      </div>
+    </div>
+
     <div id="paneSettings" class="hidden">
       <div class="card">
         <h2>⚙️ الإعدادات</h2>
@@ -497,7 +550,7 @@ const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty=
 const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
 const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
 const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
-const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',money:'التسرّب يُرى قبل أن يُغرق.',body:'الالتزام يُوثَّق هنا، والتمرين في Lyfta.',habits:'القليل الدائم يغلب الكثير المنقطع.',notes:'أكتب لأرى ما أفكر فيه.',settings:'هنا تُضبط الأدوات.'};
+const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',money:'التسرّب يُرى قبل أن يُغرق.',body:'الالتزام يُوثَّق هنا، والتمرين في Lyfta.',habits:'القليل الدائم يغلب الكثير المنقطع.',notes:'أكتب لأرى ما أفكر فيه.',leads:'الرسالة الأولى تطلب رداً، لا صفقة.',settings:'هنا تُضبط الأدوات.'};
 
 // --- rich text helpers (v3.3) ---
 const ALLOWED_TAGS=new Set(['P','BR','DIV','B','STRONG','I','EM','U','H2','H3','UL','OL','LI']);
@@ -572,10 +625,10 @@ async function doLogout(){
 
 function showTab(t){
   flushNoteSave();
-  ['Today','Money','Body','Habits','Notes'].forEach(x=>{
+  ['Today','Money','Body','Habits','Notes','Leads'].forEach(x=>{
     $('tab'+x).classList.toggle('active',x.toLowerCase()===t);
   });
-  ['Today','Money','Body','Habits','Notes','Settings'].forEach(x=>{
+  ['Today','Money','Body','Habits','Notes','Leads','Settings'].forEach(x=>{
     $('pane'+x).classList.toggle('hidden',x.toLowerCase()!==t);
   });
   $('tabMotto').textContent=MOTTOS[t]||'';
@@ -584,7 +637,223 @@ function showTab(t){
   if(t==='body')loadBody();
   if(t==='habits')loadHabits();
   if(t==='notes')loadNotes();
+  if(t==='leads')loadLeads();
   if(t==='settings')loadSettings();
+}
+
+// ============ العملاء المرتقبون (LEADS) — أُضيف بواسطة DaScaper ============
+// عدّل نصوص الرسائل من هنا مباشرة. المتغيرات: {name} {city}
+const LD_ME = 'أحمد', LD_BRAND = 'DaScaper', LD_PAGE = 'https://dascaper.pages.dev';
+
+const LD_CASES = {
+  menu:{label:'حساب نشط بلا منيو واضح', tip:'الأكثر شيوعاً — الملاحظة صادقة وقابلة للتحقق.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+دخلت حساب ${n} أدوّر المنيو قبل لا أجيكم، ولقيته متفرّق بين الستوريات والمنشورات.
+أنا أسوّي صفحات بسيطة تجمع المنيو والموقع والحجز في رابط واحد يفتح بثانية.
+تحب أوريك مثال على جوالك؟ بدون أي التزام.`},
+  branch:{label:'افتتاح فرع جديد', tip:'أقوى توقيت — ميزانية مرصودة وقرار سريع.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+سمعت أن ${n} بيفتح فرع جديد${c?' في '+c:''} — مبروك مقدماً.
+أول أسبوعين هي اللي تصنع الزبون الدائم، وأغلبها يضيع لأن ما فيه مكان واحد يوصل له أهل الحي.
+عندي فكرة تنفع للافتتاح تحديداً. أشرحها لك في رسالتين؟`},
+  ads:{label:'يشغّل إعلاناً ممولاً', tip:'الأسهل إقناعاً — مقتنع بالإعلان، ينقصه الوجهة.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+شفت إعلان ${n} وضغطت عليه، وداني على الحساب مباشرة.
+اللي يضغط إعلان يكون جاهز يقرر — وإذا وصل حساب فيه منشورات كثيرة، يطلع.
+عندي طريقة تخلي نفس الإعلان يوصله لمكان يقرر فيه على طول. أشرحها لك؟`},
+  none:{label:'بلا وجود رقمي واضح', tip:'الملاحظة موجعة وصادقة — لا تزد عليها.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+دوّرت ${n} في قوقل قبل لا أجيكم وما طلع لي شي واضح — لا منيو ولا موقع.
+يعني أي واحد جديد${c?' في '+c:''} يدوّر كافيه، ما يلقاكم.
+هذا شي يتصلح في يومين. تحب أوريك كيف؟`},
+  slow:{label:'موقع بطيء أو قديم', tip:'تجربة يتحقق منها بنفسه في ٥ ثوانٍ.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+فتحت موقع ${n} من جوالي، أخذ وقت يفتح والمنيو نزّل لي ملف.
+الزائر عادة ما ينتظر ولا يحمّل شي.
+عندي نسخة تفتح على طول بلا تحميل. أوريك الفرق بصورتين؟`},
+  busy:{label:'مكان ممتاز وزحمة', tip:'امدح ما رأيت فعلاً — المجاملة العامة تُكشف.',
+    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
+مررت على ${n}${c?' في '+c:''} والمكان ممتاز والزحمة تشهد.
+بس اللي ما جاكم بعد ما يعرف هذا — يدوّر ويلقى غيركم أسرع.
+عندي طريقة تخلي الجديد يلقاكم قبل غيركم. أشرحها لك؟`}
+};
+
+const LD_FLOW = {
+  f1:{label:'متابعة ١ — بعد ٣ أيام', body:(n)=>`مساء الخير مرة ثانية. ما أبي أثقّل عليك.
+أرسل لك مثال جاهز تشوفه في دقيقة، وإذا ما عجبك أتركك بحالك وما أزعجك مرة ثانية.`},
+  f2:{label:'متابعة ٢ — بعد ٧ أيام', body:(n)=>`تمام، أفهم إن الوقت ما يساعد الحين.
+أغلق الملف من طرفي، وإذا احتجت شي بعدين رقمي موجود.
+بالتوفيق لكم في ${n}.`},
+  rep:{label:'بعد ما يرد — هنا يدخل الرابط', body:(n)=>`تمام. هذا نموذج من شغلنا: ${LD_PAGE}
+لو ناسبك، أحتاج ١٥ دقيقة أشوف فيها وضعكم الحالي وأقول لك بصراحة إذا كنتم تحتاجون صفحة من أساسه.
+يناسبك بكرة الصبح ولا العصر؟`}
+};
+
+let ldStages=[], ldItems=[], ldSel=null, ldFilter='all';
+
+const ldPhone = raw => {
+  if(!raw) return '';
+  let d = String(raw).replace(/[٠-٩]/g,x=>x.charCodeAt(0)-0x0660).replace(/\D/g,'').replace(/^00/,'');
+  if(/^9665\d{8}$/.test(d)) return d;
+  if(/^05\d{8}$/.test(d))   return '966'+d.slice(1);
+  if(/^5\d{8}$/.test(d))    return '966'+d;
+  return d;
+};
+const ldStageLabel = k => (ldStages.find(s=>s.key===k)||{}).label_ar || k;
+
+async function loadLeads(){
+  if(!ldStages.length){
+    const {data:st} = await db.from('ds_lead_stages').select('*').order('sort');
+    ldStages = st || [];
+  }
+  const {data,error} = await db.from('ds_leads').select('*').order('created_at',{ascending:false});
+  if(error) return msg('ldMsg','تعذّر التحميل — شغّل ملف الترحيل في Supabase','err');
+  ldItems = data || [];
+  const sel = $('ldCase');
+  if(sel && !sel.options.length)
+    sel.innerHTML = Object.entries(LD_CASES).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('');
+  ldRender();
+}
+
+function ldRender(){
+  const today = todayStr();
+  const due = ldItems.filter(l=>l.next_followup_at && l.next_followup_at <= today && l.stage!=='won' && l.stage!=='lost').length;
+  const cnt = k => ldItems.filter(l=>l.stage===k).length;
+  $('ldStats').innerHTML =
+    `<span class="chip">الكل ${ldItems.length}</span>` +
+    ldStages.map(s=>`<span class="chip">${esc(s.label_ar)} ${cnt(s.key)}</span>`).join('') +
+    (due?`<span class="chip" style="border-color:var(--red);color:var(--red)">متابعة متأخرة ${due}</span>`:'');
+
+  $('ldFilters').innerHTML =
+    [['all','الكل'],['due','متابعة اليوم']].concat(ldStages.map(s=>[s.key,s.label_ar]))
+    .map(([k,l])=>`<span class="chip ${ldFilter===k?'active':''}" onclick="ldSetFilter('${k}')">${esc(l)}</span>`).join(' ');
+
+  let list = ldItems;
+  if(ldFilter==='due') list = ldItems.filter(l=>l.next_followup_at && l.next_followup_at<=today);
+  else if(ldFilter!=='all') list = ldItems.filter(l=>l.stage===ldFilter);
+
+  $('ldList').innerHTML = list.length ? list.map(l=>{
+    const late = l.next_followup_at && l.next_followup_at<=today;
+    return `<div class="item" onclick="ldOpen('${l.id}')" style="cursor:pointer">
+      <div><div class="nm">${esc(l.name)}</div>
+        <div class="meta">${esc(l.city||'—')}${l.phone_e164?' · '+esc(l.phone_e164):''}</div></div>
+      <div style="text-align:left">
+        <div class="meta">${esc(ldStageLabel(l.stage))}</div>
+        ${late?`<div class="meta" style="color:var(--red)">متابعة ${esc(l.next_followup_at)}</div>`:''}
+      </div></div>`;
+  }).join('') : '<div class="meta" style="text-align:center;padding:18px">لا يوجد — أضف عملاءك بالأسفل</div>';
+}
+
+function ldSetFilter(k){ ldFilter=k; ldRender(); }
+function ldToggleForm(){ $('ldFormWrap').classList.toggle('hidden'); }
+
+async function ldSave(){
+  const n=$('ldName').value.trim();
+  if(!n) return msg('ldMsg','اكتب اسم النشاط','err');
+  const {error} = await db.from('ds_leads').insert({
+    name:n, city:$('ldCity').value.trim()||null,
+    phone_raw:$('ldPhone').value.trim()||null, case_key:$('ldCase').value||'menu'
+  });
+  if(error) return msg('ldMsg', /duplicate|unique/i.test(error.message)?'هذا الرقم مسجّل مسبقاً':error.message,'err');
+  ['ldName','ldCity','ldPhone'].forEach(i=>$(i).value='');
+  msg('ldMsg','أُضيف','ok'); loadLeads();
+}
+
+async function ldBulkAdd(){
+  const lines = $('ldBulk').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!lines.length) return msg('ldMsg','الخانة فاضية','err');
+  const rows = lines.map(l=>{
+    const p = l.split(/[|,\t]/).map(x=>x.trim());
+    return { name:p[0], city:p[1]||null, phone_raw:p[2]||null, case_key:'menu' };
+  }).filter(r=>r.name);
+  const {error} = await db.from('ds_leads').insert(rows);
+  if(error) return msg('ldMsg','بعض الصفوف مكررة أو ناقصة: '+error.message,'err');
+  $('ldBulk').value='';
+  msg('ldMsg', `أُضيف ${rows.length}`, 'ok'); loadLeads();
+}
+
+async function ldOpen(id){
+  ldSel = ldItems.find(l=>l.id===id); if(!ldSel) return;
+  $('ldPanel').classList.remove('hidden');
+  $('ldPanelName').textContent = ldSel.name;
+  $('ldPanelSub').textContent = [ldSel.city, ldSel.phone_e164].filter(Boolean).join(' · ') || 'بلا بيانات تواصل';
+  $('ldPanelCase').innerHTML = Object.entries(LD_CASES)
+    .map(([k,v])=>`<option value="${k}"${k===ldSel.case_key?' selected':''}>${esc(v.label)}</option>`).join('');
+  $('ldPanelFlow').innerHTML = '<option value="">— الرسالة الأولى —</option>' +
+    Object.entries(LD_FLOW).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('');
+  $('ldPanelStage').innerHTML = ldStages
+    .map(s=>`<option value="${s.key}"${s.key===ldSel.stage?' selected':''}>${esc(s.label_ar)}</option>`).join('');
+  $('ldPanelFu').value = ldSel.next_followup_at || '';
+  ldPanelRender(); ldTimeline();
+  $('ldPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function ldClose(){ $('ldPanel').classList.add('hidden'); ldSel=null; }
+
+function ldMsgText(){
+  if(!ldSel) return '';
+  const f = $('ldPanelFlow').value;
+  if(f && LD_FLOW[f]) return LD_FLOW[f].body(ldSel.name);
+  const c = LD_CASES[$('ldPanelCase').value] || LD_CASES.menu;
+  return c.body(ldSel.name, ldSel.city||'');
+}
+function ldPanelRender(){
+  $('ldPanelText').textContent = ldMsgText();
+  const f = $('ldPanelFlow').value;
+  $('ldPanelTip').textContent = f ? '' : ((LD_CASES[$('ldPanelCase').value]||{}).tip||'');
+}
+function ldCopyMsg(){
+  const t = ldMsgText();
+  navigator.clipboard.writeText(t).then(()=>msg('ldPanelMsg','نُسخت','ok'),
+    ()=>msg('ldPanelMsg','انسخها يدوياً','err'));
+}
+
+async function ldSendWa(){
+  if(!ldSel) return;
+  const num = ldPhone(ldSel.phone_e164 || ldSel.phone_raw);
+  const body = ldMsgText();
+  const flow = $('ldPanelFlow').value;
+  await db.from('ds_lead_activities').insert({
+    lead_id: ldSel.id, type:'message_sent', channel:'whatsapp',
+    template_key: flow || $('ldPanelCase').value, body
+  });
+  if(ldSel.stage === 'new') await ldSetStage('contacted', true);
+  const d = new Date(Date.now() + 3*864e5).toISOString().slice(0,10);
+  await ldSetFollowup(d, true);
+  if(num) window.open(`https://wa.me/${num}?text=${encodeURIComponent(body)}`,'_blank');
+  else msg('ldPanelMsg','لا يوجد رقم — انسخ الرسالة وأرسلها من إنستقرام','err');
+  await loadLeads(); ldSel = ldItems.find(l=>l.id===ldSel.id); ldTimeline();
+}
+
+async function ldSetStage(k, quiet){
+  if(!ldSel) return;
+  const {error} = await db.from('ds_leads').update({stage:k}).eq('id',ldSel.id);
+  if(error) return msg('ldPanelMsg',error.message,'err');
+  ldSel.stage = k;
+  if(!quiet){ await loadLeads(); ldTimeline(); msg('ldPanelMsg','حُدّثت المرحلة','ok'); }
+}
+async function ldSetFollowup(v, quiet){
+  if(!ldSel) return;
+  await db.from('ds_leads').update({next_followup_at: v||null}).eq('id',ldSel.id);
+  ldSel.next_followup_at = v||null;
+  if(!quiet){ await loadLeads(); msg('ldPanelMsg','حُدّدت المتابعة','ok'); }
+  else if($('ldPanelFu')) $('ldPanelFu').value = v||'';
+}
+
+async function ldTimeline(){
+  if(!ldSel) return;
+  const {data} = await db.from('ds_lead_activities').select('*')
+    .eq('lead_id', ldSel.id).order('occurred_at',{ascending:false}).limit(20);
+  const T = {message_sent:'📤 أُرسلت', reply_received:'📥 ردّ',
+             stage_changed:'🔄 المرحلة', note:'📝 ملاحظة', call:'📞 مكالمة', visit:'🚶 زيارة'};
+  $('ldTimeline').innerHTML = (data&&data.length) ? data.map(a=>{
+    const when = String(a.occurred_at||'').slice(0,16).replace('T',' ');
+    let extra = '';
+    if(a.type==='stage_changed' && a.meta)
+      extra = `${ldStageLabel(a.meta.from)} ← ${ldStageLabel(a.meta.to)}`;
+    else if(a.body) extra = a.body.split('\n')[0].slice(0,54)+'…';
+    return `<div class="item"><div><div class="nm">${T[a.type]||a.type}</div>
+      <div class="meta">${esc(extra)}</div></div><div class="meta">${esc(when)}</div></div>`;
+  }).join('') : '<div class="meta">لا يوجد نشاط بعد</div>';
 }
 
 // ============ TODAY ============
