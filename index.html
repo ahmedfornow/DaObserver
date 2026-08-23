@@ -1,2145 +1,883 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="DaObserver">
-<meta name="theme-color" content="#070b09">
-<title>DaObserver | Your Life Observer</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
-  :root {
-    --bg:#070b09; --card:#101613; --card2:#16201b;
-    --em:#6fd9a6; --em-hi:#9ae8c4; --em-lo:#3fa876;
-    --gold:#d8bd84;
-    --line:rgba(111,217,166,.16); --line-soft:rgba(111,217,166,.08);
-    --text:#e9efeb; --muted:#8a9a91;
-    --green:#3ddc97; --red:#e5604f; --radius:16px;
-    --serif:'Noto Naskh Arabic',serif;
-  }
-  *{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;-webkit-tap-highlight-color:transparent}
-  body{background:radial-gradient(1200px 600px at 50% -10%, #0c1410 0%, var(--bg) 55%);color:var(--text);min-height:100vh;padding:0 16px calc(24px + env(safe-area-inset-bottom));display:flex;justify-content:center}
-  .container{width:100%;max-width:440px;position:relative}
-  .hero{position:relative;margin:0 -16px 20px;height:46vh;max-height:400px;min-height:280px;overflow:hidden;border-bottom:1px solid var(--line-soft)}
-  .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 58%;animation:heroFade 1.1s ease both}
-  .hero-grad{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,11,9,.30) 0%,rgba(7,11,9,.55) 45%,rgba(7,11,9,.95) 85%,var(--bg) 100%)}
-  .hero-content{position:absolute;right:22px;left:22px;bottom:22px;animation:heroRise .6s ease .15s both}
-  .hero-brand{font-size:11.5px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
-  .hero-brand b{color:var(--em);font-weight:700}
-  .hero-greet{font-size:15px;color:#cfe0d6}
-  .hero-name{font-family:var(--serif);font-size:40px;font-weight:700;color:var(--text);line-height:1.2;text-shadow:0 2px 18px rgba(0,0,0,.55)}
-  .hero-date{font-size:12px;color:var(--muted);margin-top:7px}
-  @keyframes heroFade{from{opacity:0}to{opacity:1}}
-  @keyframes heroRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .card{background:linear-gradient(180deg,#131c17 0%,var(--card) 100%);border-radius:var(--radius);padding:26px 22px;border:1px solid var(--line);margin-bottom:18px;box-shadow:0 10px 26px rgba(0,0,0,.25)}
-  .card h2{font-family:var(--serif);font-size:17.5px;margin-bottom:16px;font-weight:700;letter-spacing:.2px}
-  label{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 7px;letter-spacing:.3px}
-  input,select,textarea{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:16px;text-align:right;transition:border-color .15s}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--em)}
-  :focus-visible{outline:2px solid var(--em);outline-offset:2px}
-  input[type="file"]{padding:10px;font-size:13px}
-  button{width:100%;padding:14px;margin-top:14px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--em-hi) 0%,var(--em) 45%,var(--em-lo) 100%);color:#08120c;font-size:15px;font-weight:700;letter-spacing:.4px;cursor:pointer;box-shadow:0 6px 18px rgba(111,217,166,.13);transition:transform .12s}
-  button:active{transform:translateY(1px)}
-  button:disabled{opacity:.45;cursor:wait}
-  .ghost{background:transparent;border:1px solid var(--line);color:var(--em);box-shadow:none;font-weight:500}
-  .msg{margin-top:12px;padding:11px;border-radius:11px;font-size:13px;text-align:center;display:none}
-  .msg.err{display:block;background:rgba(229,96,79,.1);color:var(--red);border:1px solid rgba(229,96,79,.28)}
-  .msg.ok{display:block;background:rgba(61,220,151,.08);color:var(--green);border:1px solid rgba(61,220,151,.25)}
-  .hidden{display:none!important}
-  .tabs{position:sticky;top:0;z-index:50;display:flex;gap:5px;padding:10px 4px;margin:0 -4px 6px;background:rgba(7,11,9,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-  .tab{flex:1;padding:10px 1px;text-align:center;border-radius:11px;background:var(--card);border:1px solid var(--line-soft);color:var(--muted);font-size:11px;cursor:pointer;transition:all .13s}
-  .tab.active{background:rgba(111,217,166,.1);border-color:var(--em);color:var(--em);font-weight:700}
-  .motto{font-family:var(--serif);color:var(--muted);font-size:14px;text-align:center;margin:4px 8px 18px;line-height:1.8}
-  .counter{display:flex;justify-content:space-around;background:linear-gradient(180deg,#18231d,#141d18);border:1px solid var(--line-soft);border-radius:13px;padding:18px 8px;margin-bottom:18px}
-  .counter div{text-align:center;flex:1}
-  .counter div+div{border-right:1px solid var(--line-soft)}
-  .counter .num{font-size:24px;font-weight:700;color:var(--em);font-variant-numeric:tabular-nums}
-  .counter .lbl{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.3px}
-  .item{display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line-soft);border-radius:11px;padding:12px 14px;margin-top:9px;font-size:13.5px}
-  .item .meta{color:var(--muted);font-size:11px;margin-top:3px}
-  .item .del{background:transparent;border:none;color:var(--red);font-size:15px;width:auto;margin:0;padding:4px 8px;cursor:pointer;box-shadow:none}
-  .item .ico{background:transparent;border:none;color:var(--muted);font-size:14px;width:auto;margin:0;padding:4px 6px;cursor:pointer;box-shadow:none}
-  .dim{opacity:.5}
-  .bar{height:7px;border-radius:99px;background:var(--card2);border:1px solid var(--line-soft);overflow:hidden;margin-top:7px}
-  .bar > div{height:100%;background:linear-gradient(90deg,var(--em-lo),var(--em-hi));border-radius:99px;transition:width .4s}
-  .chip{display:inline-block;padding:8px 13px;border-radius:99px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:12.5px;cursor:pointer;margin:4px 2px 0}
-  .chip.active{border-color:var(--em);color:var(--em);background:rgba(111,217,166,.1);font-weight:700}
-  .hab{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer}
-  .hab .box{width:30px;height:30px;border-radius:9px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:all .15s}
-  .hab.done .box{border-color:var(--em);background:rgba(111,217,166,.14);color:var(--em)}
-  .hab .nm{flex:1;font-size:14.5px}
-  .hab .streak{font-size:11.5px;color:var(--gold);font-weight:700}
-  .dots{display:flex;gap:3px;margin-top:3px}
-  .dot{width:9px;height:9px;border-radius:3px;background:var(--card2);border:1px solid var(--line-soft)}
-  .dot.on{background:var(--em-lo);border-color:var(--em)}
-  .task{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--line-soft)}
-  .task .tbox{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--em);flex-shrink:0;cursor:pointer}
-  .task.done .tbox{border-color:var(--em);background:rgba(111,217,166,.12)}
-  .task.done .tt{text-decoration:line-through;color:var(--muted)}
-  .task .tt{flex:1;font-size:14px}
-  .tbadge{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--gold);font-size:11px;margin-inline-start:6px;white-space:nowrap}
-  .task.late{border:1px solid rgba(229,96,79,.35);background:rgba(229,96,79,.06);border-radius:10px;padding-inline:8px;margin-top:6px}
-  .task.now{background:rgba(111,217,166,.05)}
-  .task.now .tbadge{color:var(--em);border-color:var(--em)}
-  input[type="date"],input[type="time"]{color-scheme:dark}
-  .lbl-dot{display:inline-block;width:10px;height:10px;border-radius:99px;margin-inline-end:6px;vertical-align:middle}
-  .cchip{display:inline-block;width:26px;height:26px;border-radius:99px;margin:4px 3px 0;cursor:pointer;border:2px solid transparent;vertical-align:middle}
-  .cchip.active{border-color:var(--text)}
-  textarea{font-family:inherit;line-height:1.8}
-  /* --- focus timer (v3.5) --- */
-  .tm-time{font-size:46px;font-weight:700;text-align:center;color:var(--em);font-variant-numeric:tabular-nums;letter-spacing:1px;margin:6px 0 2px;line-height:1.1}
-  .tm-phase{font-family:var(--serif);text-align:center;font-size:12.5px;color:var(--muted);margin-bottom:10px;min-height:18px}
-  /* --- checklist in notes (v3.5) --- */
-  #edBody ul[data-chk]{list-style:none;padding-inline-start:2px;margin:8px 0 12px}
-  #edBody ul[data-chk] li{position:relative;padding-inline-start:30px;margin-bottom:9px}
-  #edBody ul[data-chk] li::before{content:'☐';position:absolute;inset-inline-start:0;top:-2px;font-size:20px;color:var(--muted);cursor:pointer}
-  #edBody ul[data-chk] li[data-done="1"]::before{content:'☑';color:var(--em)}
-  #edBody ul[data-chk] li[data-done="1"]{color:var(--muted);text-decoration:line-through}
-  /* --- rich editor (v3.3) --- */
-  .toolbar{position:sticky;top:56px;z-index:40;display:flex;flex-wrap:wrap;gap:4px;padding:8px 6px;margin:8px -6px;background:rgba(16,22,19,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line-soft);border-radius:11px}
-  .tb{flex:none;width:auto;margin:0;padding:7px 10px;border-radius:8px;background:var(--card2);border:1px solid var(--line-soft);color:var(--text);font-size:12.5px;font-weight:400;box-shadow:none;cursor:pointer;transition:all .12s}
-  .tb:active{transform:none}
-  .tb.on{border-color:var(--em);color:var(--em);background:rgba(111,217,166,.12);font-weight:700}
-  .tb.h{font-family:var(--serif);font-weight:700}
-  #edBody{width:100%;min-height:46vh;padding:14px;border-radius:11px;border:1px solid var(--line-soft);background:var(--card2);color:var(--text);font-size:16px;line-height:1.9;text-align:right;overflow-y:auto}
-  #edBody:focus{outline:none;border-color:var(--em)}
-  #edBody:empty:before{content:attr(data-ph);color:var(--muted)}
-  #edBody h2{font-family:var(--serif);font-size:21px;font-weight:700;color:var(--em);margin:14px 0 6px}
-  #edBody h3{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--em-hi);margin:12px 0 5px}
-  #edBody p{margin:0 0 8px}
-  #edBody ul,#edBody ol{padding-inline-start:24px;margin:6px 0 10px}
-  #edBody li{margin-bottom:5px}
-  #edBody b,#edBody strong{color:#fff;font-weight:700}
-  .sec-h{font-family:var(--serif);font-size:14.5px;margin:20px 0 9px;color:var(--em);letter-spacing:.3px;font-weight:600;display:flex;align-items:center;gap:8px}
-  .sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
-  .exit{background:rgba(7,11,9,.45);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line-soft);color:#cfe0d6;width:auto;padding:8px 14px;margin:0;font-size:12px;font-weight:400;box-shadow:none}
-  .topbar{position:absolute;top:16px;left:16px;z-index:60;display:flex;gap:6px}
-  .chart-card{background:var(--card2);border:1px solid var(--line-soft);border-radius:13px;padding:12px;margin-top:10px}
-  .row2{display:flex;gap:8px}
-  .row2 > *{flex:1}
-  .signoff{font-family:var(--serif);text-align:center;color:var(--muted);font-size:12.5px;margin:28px 0 6px;letter-spacing:.3px}
-  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
-</style>
-</head>
-<body>
-<div class="container">
 
-  <!-- HERO -->
-  <header class="hero">
-    <img src="hero.jpg" alt="" class="hero-img" onerror="this.style.display='none'">
-    <div class="hero-grad"></div>
-    <div class="hero-content">
-      <div class="hero-brand">Da<b>Observer</b> 👁️</div>
-      <div class="hero-greet" id="greetLine">حيّاك الله</div>
-      <div class="hero-name" id="gName">مركز حياتك</div>
-      <div class="hero-date" id="todayDate"></div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>DaObserver — عينك على يومك</title>
+  <meta name="description" content="تطبيق واحد يجمع مهامك، مالك، جسمك وعاداتك. مشروع تعليمي مفتوح ومجاني بالكامل.">
+  <meta property="og:title" content="DaObserver — عينك على يومك">
+  <meta property="og:description"
+    content="تطبيق واحد يجمع مهامك، مالك، جسمك وعاداتك. مشروع تعليمي مفتوح ومجاني بالكامل.">
+  <meta property="og:image" content="./assets/og-image.png">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#0d2436">
+  <link rel="icon" href="./assets/icon-192.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap"
+    rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: "#0d2436",
+            "ink-2": "#123449",
+            "ink-3": "#1b4763",
+            brand: "#0ea5e9",
+            "brand-2": "#38bdf8",
+            "brand-3": "#7dd3fc",
+            accent: "#f472b6",
+            page: "#eef4f9",
+            card: "#ffffff",
+            muted: "#5b7183",
+            "muted-2": "#8ea4b4",
+            line: "#dce7f0"
+          },
+          maxWidth: { shell: "1180px" },
+          boxShadow: {
+            soft: "0 2px 4px rgba(13,36,54,.04), 0 12px 32px rgba(13,36,54,.07)",
+            lift: "0 4px 8px rgba(13,36,54,.06), 0 24px 48px rgba(13,36,54,.12)"
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: #eef4f9;
+      color: #0d2436;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Type: display face swaps with language, body face follows suit ── */
+    html[lang="ar"] body,
+    html[lang="ar"] .u-body {
+      font-family: "IBM Plex Sans Arabic", system-ui, sans-serif;
+    }
+
+    html[lang="en"] body,
+    html[lang="en"] .u-body {
+      font-family: "Inter", system-ui, sans-serif;
+    }
+
+    html[lang="ar"] .u-display {
+      font-family: "IBM Plex Sans Arabic", sans-serif;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    html[lang="en"] .u-display {
+      font-family: "Sora", sans-serif;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    /* Latin runs inside Arabic text (brand name, stack names) keep the Latin face */
+    .u-latin {
+      font-family: "Sora", sans-serif;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    .u-eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: #0ea5e9;
+    }
+
+    html[lang="ar"] .u-eyebrow {
+      letter-spacing: .04em;
+      text-transform: none;
+      font-size: 13px;
+    }
+
+    .material-symbols-outlined {
+      font-family: "Material Symbols Outlined";
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'opsz' 24;
+    }
+
+    /* ── Signature: the observer bracket. A thin cyan rule that opens like an
+       eyelid before every section eyebrow. Reused nowhere else. ── */
+    .bracket {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bracket::before {
+      content: "";
+      width: 26px;
+      height: 8px;
+      border-top: 2px solid #0ea5e9;
+      border-radius: 26px 26px 0 0;
+      transform: translateY(3px);
+    }
+
+    /* ── Nav ── */
+    .navlink {
+      position: relative;
+      padding: 6px 0;
+      color: #cfe2ee;
+      transition: color .2s var(--ease);
+    }
+
+    .navlink:hover,
+    .navlink.is-active {
+      color: #fff;
+    }
+
+    .navlink::after {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      bottom: 0;
+      height: 2px;
+      width: 0;
+      background: #38bdf8;
+      transition: width .25s var(--ease);
+    }
+
+    .navlink:hover::after,
+    .navlink.is-active::after {
+      width: 100%;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 15px;
+      padding: 13px 26px;
+      transition: transform .18s var(--ease), background-color .18s var(--ease), box-shadow .18s var(--ease);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: #0ea5e9;
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(14, 165, 233, .28);
+    }
+
+    .btn-primary:hover {
+      background: #0284c7;
+    }
+
+    .btn-ghost {
+      border: 1.5px solid #0d2436;
+      color: #0d2436;
+    }
+
+    .btn-ghost:hover {
+      background: #0d2436;
+      color: #fff;
+    }
+
+    .btn-on-dark {
+      border: 1.5px solid rgba(255, 255, 255, .35);
+      color: #fff;
+    }
+
+    .btn-on-dark:hover {
+      background: #fff;
+      color: #0d2436;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border: 1px solid #dce7f0;
+      transition: transform .25s var(--ease), box-shadow .25s var(--ease);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 8px rgba(13, 36, 54, .06), 0 24px 48px rgba(13, 36, 54, .12);
+    }
+
+    /* ── Asset placeholders: visible until the PNGs are generated ── */
+    .ph {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border: 2px dashed #b6cddd;
+      border-radius: 6px;
+      color: #8ea4b4;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      background: rgba(255, 255, 255, .5);
+      padding: 12px;
+    }
+
+    .asset-missing>img {
+      display: none;
+    }
+
+    .asset-missing>.ph {
+      display: flex;
+    }
+
+    /* ── Scroll reveal ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity .6s var(--ease), transform .6s var(--ease);
+    }
+
+    .reveal.shown {
+      opacity: 1;
+      transform: none;
+    }
+
+    :focus-visible {
+      outline: 3px solid #38bdf8;
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+
+      .card:hover {
+        transform: none;
+      }
+
+      * {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="antialiased">
+
+  <!-- ═══════════ TOP BAR ═══════════ -->
+  <div class="bg-ink text-white">
+    <div class="max-w-shell mx-auto px-5 h-[68px] flex items-center justify-between gap-4">
+      <a href="#top" class="flex items-center gap-3 shrink-0">
+        <svg width="34" height="30" viewBox="0 0 34 30" fill="none" aria-hidden="true">
+          <path d="M2 2 L11 28" stroke="#38bdf8" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M9 2 L18 28" stroke="#0ea5e9" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M16 2 L25 28" stroke="#7dd3fc" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M32 2 L23 28" stroke="#38bdf8" stroke-width="3.2" stroke-linecap="round" />
+        </svg>
+        <span class="u-latin text-[20px] tracking-tight">DaObserver</span>
+      </a>
+
+      <div class="flex items-center gap-2 sm:gap-4">
+        <span class="hidden md:block text-[13px] text-brand-3" data-i18n="top.badge">مشروع تخرّج · جامعة القصيم</span>
+        <span class="hidden md:block w-px h-6 bg-white/15"></span>
+        <button id="lang-toggle"
+          class="h-9 px-3 rounded border border-white/25 text-[13px] font-semibold hover:bg-white/10 transition-colors">
+          English
+        </button>
+        <a href="./app.html" class="btn btn-primary !py-2.5 !px-5 !text-[14px]">
+          <span data-i18n="nav.open">افتح التطبيق</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ NAV ═══════════ -->
+  <nav id="nav" class="bg-ink-2 text-white sticky top-0 z-50 border-t border-white/10">
+    <div class="max-w-shell mx-auto px-5 h-[52px] flex items-center justify-between">
+      <div class="flex items-center gap-7 text-[14px] font-medium overflow-x-auto" style="scrollbar-width:none">
+        <a href="#top" class="navlink whitespace-nowrap" data-i18n="nav.home">الرئيسية</a>
+        <a href="#why" class="navlink whitespace-nowrap" data-i18n="nav.why">لماذا</a>
+        <a href="#modules" class="navlink whitespace-nowrap" data-i18n="nav.modules">الوحدات</a>
+        <a href="#build" class="navlink whitespace-nowrap" data-i18n="nav.build">كيف بُني</a>
+        <a href="#privacy" class="navlink whitespace-nowrap" data-i18n="nav.privacy">بياناتك</a>
+      </div>
+      class="hidden sm:flex items-center gap-2 text-[13px] text-brand-3 hover:text-white transition-colors">
+      <span class="material-symbols-outlined text-[18px]">code</span>
+      <span data-i18n="nav.source">الشيفرة المصدرية</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <header id="top" class="relative overflow-hidden">
+    <div class="absolute inset-0 -z-10 asset-missing" id="hero-bg-wrap">
+      <img src="./assets/hero-bg.jpg" alt="" class="w-full h-full object-cover">
+      <div class="ph absolute inset-0 !border-0 !bg-gradient-to-b !from-[#dceaf6] !via-[#eaf3fa] !to-[#eef4f9]"></div>
+    </div>
+
+    <div class="max-w-shell mx-auto px-5 pt-14 pb-0 lg:pt-20">
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
+
+        <div class="reveal">
+          <span class="u-eyebrow bracket" data-i18n="hero.eyebrow">مشروع تعليمي مفتوح</span>
+          <h1 class="u-display text-[42px] sm:text-[54px] lg:text-[60px] leading-[1.08] mt-5 text-ink">
+            <span data-i18n="hero.title1">عينك على يومك</span><br>
+            <span class="text-brand" data-i18n="hero.title2">في مكان واحد</span>
+          </h1>
+          <p class="u-body text-[17px] leading-[1.85] text-muted mt-6 max-w-[30rem]" data-i18n="hero.sub">
+            مهامك، مالك، جسمك وعاداتك — أربع جهات تسحبك كل يوم، جمعناها في تطبيق واحد بسيط. مجاني بالكامل، وبُني كمشروع
+            تعلّم من الصفر حتى الإطلاق.
+          </p>
+          <div class="flex flex-wrap gap-3 mt-9">
+            <a href="./app.html" class="btn btn-primary" data-i18n="hero.cta1">ابدأ الآن مجاناً</a>
+            <a href="#modules" class="btn btn-ghost" data-i18n="hero.cta2">شاهد الوحدات</a>
+          </div>
+          <p class="u-body text-[13px] text-muted-2 mt-5 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[17px]">lock</span>
+            <span data-i18n="hero.note">تسجيل الدخول بحساب جوجل · لا بطاقة ولا اشتراك</span>
+          </p>
+        </div>
+
+        <div class="relative reveal asset-missing" id="hero-device-wrap">
+          <img src="./assets/hero-device.png" alt=""
+            class="w-full max-w-[520px] mx-auto drop-shadow-2xl select-none pointer-events-none">
+          <div class="ph h-[420px] max-w-[300px] mx-auto">assets/hero-device.png<br>1600 × 1200 · alpha</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Feature row overlaps the hero's bottom edge -->
+    <div class="max-w-shell mx-auto px-5 relative z-10 mt-12 lg:mt-4 translate-y-px">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-line border border-line shadow-soft">
+        <!-- card 1 -->
+        <div class="card !border-0 p-7 reveal">
+          <div class="h-11 w-11 asset-missing" data-icon>
+            <img src="./assets/icon-1.png" alt="" class="h-11 w-11 object-contain">
+            <span class="ph !border-0 material-symbols-outlined !text-[32px] text-brand">checklist</span>
+          </div>
+          <h3 class="u-display text-[18px] mt-5 text-ink" data-i18n="f1.t">متابعة يومية</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="f1.d">مهام اليوم وخطة الغد في شاشة
+            واحدة، مع تنبيه للمتأخر منها.</p>
+        </div>
+        <!-- card 2 -->
+        <div class="card !border-0 p-7 reveal">
+          <div class="h-11 w-11 asset-missing" data-icon>
+            <img src="./assets/icon-2.png" alt="" class="h-11 w-11 object-contain">
+            <span class="ph !border-0 material-symbols-outlined !text-[32px] text-brand">payments</span>
+          </div>
+          <h3 class="u-display text-[18px] mt-5 text-ink" data-i18n="f2.t">وعي مالي</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="f2.d">ديونك، مستحقاتك، ومصاريف اليوم
+            مقابل حدّ تضعه بنفسك.</p>
+        </div>
+        <!-- card 3 -->
+        <div class="card !border-0 p-7 reveal">
+          <div class="h-11 w-11 asset-missing" data-icon>
+            <img src="./assets/icon-3.png" alt="" class="h-11 w-11 object-contain">
+            <span class="ph !border-0 material-symbols-outlined !text-[32px] text-brand">fitness_center</span>
+          </div>
+          <h3 class="u-display text-[18px] mt-5 text-ink" data-i18n="f3.t">انضباط جسدي</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="f3.d">سجّل تمرينك ووزنك، وتابع سلسلة
+            أيامك المتصلة.</p>
+        </div>
+        <!-- card 4 -->
+        <div class="card !border-0 p-7 reveal">
+          <div class="h-11 w-11 asset-missing" data-icon>
+            <img src="./assets/icon-4.png" alt="" class="h-11 w-11 object-contain">
+            <span class="ph !border-0 material-symbols-outlined !text-[32px] text-brand">local_fire_department</span>
+          </div>
+          <h3 class="u-display text-[18px] mt-5 text-ink" data-i18n="f4.t">عادات تتراكم</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="f4.d">تتبّع بسيط بنقطة واحدة في اليوم
+            — الاستمرارية تبني نفسها.</p>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- LOGIN -->
-  <div class="card" id="loginCard">
-    <h2>تسجيل الدخول</h2>
-    <label>رقم المستخدم</label>
-    <input type="tel" id="last4" maxlength="4" inputmode="numeric" placeholder="• • • •" style="text-align:center;letter-spacing:2px">
-    <label>كلمة المرور</label>
-    <input type="password" id="pin" maxlength="10" inputmode="numeric" placeholder="• • • • • • •" style="text-align:center;letter-spacing:2px">
-    <button id="loginBtn" onclick="doLogin()">دخول</button>
-    <div class="msg" id="loginMsg"></div>
-  </div>
-
-  <!-- APP -->
-  <div class="hidden" id="app">
-    <div class="topbar">
-      <button class="exit" onclick="showTab('settings')" aria-label="الإعدادات">⚙️</button>
-      <button class="exit" onclick="doLogout()">خروج</button>
+  <!-- ═══════════ FREE BAND ═══════════ -->
+  <section class="max-w-shell mx-auto px-5 mt-8">
+    <div class="bg-ink text-white p-7 sm:p-9 flex flex-col sm:flex-row sm:items-center justify-between gap-5 reveal">
+      <div>
+        <h3 class="u-display text-[20px]" data-i18n="band.t">مجاني بالكامل. بلا إعلانات، بلا اشتراك.</h3>
+        <p class="u-body text-[14px] text-brand-3 mt-1.5" data-i18n="band.d">مشروع تعليمي — الهدف منه التعلّم والمشاركة،
+          لا الربح.</p>
+      </div>
+      <a href="./app.html" class="btn btn-on-dark shrink-0">
+        <span data-i18n="band.cta">افتح التطبيق</span>
+        <span class="material-symbols-outlined text-[18px] rtl:rotate-180">arrow_forward</span>
+      </a>
     </div>
-    <div class="tabs">
-      <div class="tab active" id="tabToday" onclick="showTab('today')">☀️ اليوم</div>
-      <div class="tab" id="tabMoney" onclick="showTab('money')">💰 المال</div>
-      <div class="tab" id="tabBody" onclick="showTab('body')">💪 الجسم</div>
-      <div class="tab" id="tabHabits" onclick="showTab('habits')">🔥 العادات</div>
-      <div class="tab" id="tabNotes" onclick="showTab('notes')">📝 العصف</div>
-      <div class="tab" id="tabLeads" onclick="showTab('leads')">🎯 العملاء</div>
-    </div>
-    <div class="motto" id="tabMotto">—</div>
+  </section>
 
-    <!-- ============ TODAY ============ -->
-    <div id="paneToday">
-      <div class="card">
-        <h2>⏱️ التركيز</h2>
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <span class="chip active" id="tmChipUp" onclick="setTimerMode('up')">⏱️ عدّاد</span>
-          <span class="chip" id="tmChipPomo" onclick="setTimerMode('pomo')">🍅 بومودورو</span>
-        </div>
-        <div class="tm-time" id="tmDisplay">00:00</div>
-        <div class="tm-phase" id="tmPhaseTxt">جاهز</div>
-        <div class="bar hidden" id="tmBarWrap" style="margin-bottom:10px"><div id="tmBar" style="width:0%"></div></div>
-        <div class="row2">
-          <button id="tmStart" style="margin:0" onclick="tmToggle()">ابدأ</button>
-          <button class="ghost" style="margin:0" onclick="tmReset()">تصفير</button>
-        </div>
+  <!-- ═══════════ STACK STRIP ═══════════ -->
+  <section class="max-w-shell mx-auto px-5 py-14">
+    <p class="u-body text-center text-[13px] text-muted-2 mb-7" data-i18n="stack.label">بُني بأدوات مفتوحة ومجانية</p>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line">
+      <div class="bg-page py-6 px-4 text-center"><span class="u-latin text-[15px] text-ink-3">Firebase</span></div>
+      <div class="bg-page py-6 px-4 text-center"><span class="u-latin text-[15px] text-ink-3">Firestore</span></div>
+      <div class="bg-page py-6 px-4 text-center"><span class="u-latin text-[15px] text-ink-3">Tailwind CSS</span></div>
+      <div class="bg-page py-6 px-4 text-center"><span class="u-latin text-[15px] text-ink-3">Google Sign-In</span>
       </div>
-      <div class="card">
-        <h2>📋 مهام اليوم</h2>
-        <div id="morningBrief" style="color:var(--muted);font-size:12px;margin:-10px 0 12px">—</div>
-        <div id="overdueWrap" class="hidden">
-          <div class="sec-h" style="color:var(--red)">⏳ متأخرة</div>
-          <div id="overdueList"></div>
-        </div>
-        <div id="todayTasks"><div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div></div>
+      <div class="bg-page py-6 px-4 text-center col-span-2 md:col-span-1"><span
+          class="u-latin text-[15px] text-ink-3">Vanilla JS</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ WHY ═══════════ -->
+  <section id="why" class="bg-white border-y border-line py-20">
+    <div class="max-w-shell mx-auto px-5 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+      <div class="reveal asset-missing" id="about-wrap">
+        <img src="./assets/about-visual.png" alt="" class="w-full">
+        <div class="ph h-[300px]">assets/about-visual.png<br>1200 × 900 · alpha</div>
       </div>
-      <div class="card">
-        <h2>⚡ عاداتي اليوم</h2>
-        <div id="quickHabits"></div>
-      </div>
-      <div class="card">
-        <h2>🌙 خطة بكرة</h2>
-        <div class="row2" style="margin-top:2px">
-          <input type="text" id="newTask" placeholder="مهمة لبكرة..." onkeydown="if(event.key==='Enter')addTask()">
-          <button style="margin:0;width:90px" onclick="addTask()">أضِف</button>
-        </div>
-        <div id="tomorrowTasks"></div>
-        <div class="msg" id="todayMsg"></div>
-      </div>
-      <div class="card">
-        <h2>⏰ القادم</h2>
-        <div id="upcomingList"><div style="color:var(--muted);font-size:11px;text-align:center;padding:8px">لا مهام مجدولة بعد</div></div>
-        <button class="ghost" onclick="openTaskForm()">＋ جدولة مهمة</button>
-        <div id="addTaskWrap" class="hidden">
-          <input type="text" id="tkTitle" placeholder="المهمة" style="margin-top:8px">
-          <div class="row2" style="margin-top:8px">
-            <input type="date" id="tkDate">
-            <input type="time" id="tkTime">
+
+      <div class="reveal">
+        <span class="u-eyebrow bracket" data-i18n="why.eyebrow">عن المشروع</span>
+        <h2 class="u-display text-[32px] sm:text-[38px] leading-[1.2] mt-5 text-ink" data-i18n="why.t">بدأ كتمرين،
+          وانتهى كأداة أستخدمها كل يوم</h2>
+        <p class="u-body text-[16px] leading-[1.9] text-muted mt-5" data-i18n="why.d1">
+          كنت أتنقّل بين أربعة تطبيقات: واحد للمهام، وآخر للمصاريف، وثالث للتمرين، ودفتر للملاحظات. لا أحد منها يعرف عن
+          الآخر شيئاً، ولا أحد منها مصمّم للعربية أصلاً.
+        </p>
+        <p class="u-body text-[16px] leading-[1.9] text-muted mt-4" data-i18n="why.d2">
+          <span class="u-latin">DaObserver</span> هو محاولة لجمعها كلها في سطح واحد — وفي الوقت نفسه مشروع أتعلّم منه
+          بناء تطبيق كامل من الفكرة حتى النشر.
+        </p>
+
+        <div class="grid grid-cols-3 gap-px bg-line border border-line mt-9">
+          <div class="bg-white py-6 px-3 text-center">
+            <div class="u-display text-[30px] text-ink">5</div>
+            <div class="u-body text-[12px] text-muted mt-1" data-i18n="why.s1">وحدات</div>
           </div>
-          <button id="taskSaveBtn" onclick="saveTask()">جدولة</button>
+          <div class="bg-white py-6 px-3 text-center">
+            <div class="u-display text-[30px] text-ink">12</div>
+            <div class="u-body text-[12px] text-muted mt-1" data-i18n="why.s2">مجموعة بيانات</div>
+          </div>
+          <div class="bg-white py-6 px-3 text-center">
+            <div class="u-display text-[30px] text-brand">0</div>
+            <div class="u-body text-[12px] text-muted mt-1" data-i18n="why.s3">ريال للاستخدام</div>
+          </div>
         </div>
-        <div class="msg" id="schedMsg"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ MODULES ═══════════ -->
+  <section id="modules" class="py-20">
+    <div class="max-w-shell mx-auto px-5">
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-10 reveal">
+        <div>
+          <span class="u-eyebrow bracket" data-i18n="mod.eyebrow">الوحدات</span>
+          <h2 class="u-display text-[32px] sm:text-[38px] mt-4 text-ink" data-i18n="mod.t">خمس شاشات، لا أكثر</h2>
+        </div>
+        <p class="u-body text-[14px] text-muted max-w-[24rem]" data-i18n="mod.sub">كل وحدة تجيب على سؤال واحد. لا
+          إعدادات مدفونة ولا قوائم متشعّبة.</p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+        <article class="card p-0 overflow-hidden reveal">
+          <div class="h-[168px] bg-ink-3 asset-missing relative">
+            <img src="./assets/section-1.jpg" alt="" class="w-full h-full object-cover">
+            <div class="ph absolute inset-0 !border-0">assets/section-1.jpg</div>
+          </div>
+          <div class="p-6">
+            <span class="u-eyebrow" data-i18n="m1.k">اليوم</span>
+            <h3 class="u-display text-[19px] mt-2.5 text-ink" data-i18n="m1.t">ماذا عليّ الآن؟</h3>
+            <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="m1.d">مهام اليوم، المتأخرات، وخطة
+              الغد التي تكتبها الليلة فتستقبلك في الصباح.</p>
+          </div>
+        </article>
+
+        <article class="card p-0 overflow-hidden reveal">
+          <div class="h-[168px] bg-ink-3 asset-missing relative">
+            <img src="./assets/section-2.jpg" alt="" class="w-full h-full object-cover">
+            <div class="ph absolute inset-0 !border-0">assets/section-2.jpg</div>
+          </div>
+          <div class="p-6">
+            <span class="u-eyebrow" data-i18n="m2.k">المال</span>
+            <h3 class="u-display text-[19px] mt-2.5 text-ink" data-i18n="m2.t">أين يذهب؟</h3>
+            <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="m2.d">ديون بنسبة سداد مرئية،
+              مستحقات معلّقة، ومصاريف يومية مقابل حدّ تضعه.</p>
+          </div>
+        </article>
+
+        <article class="card p-0 overflow-hidden reveal">
+          <div class="h-[168px] bg-ink-3 asset-missing relative">
+            <img src="./assets/section-3.jpg" alt="" class="w-full h-full object-cover">
+            <div class="ph absolute inset-0 !border-0">assets/section-3.jpg</div>
+          </div>
+          <div class="p-6">
+            <span class="u-eyebrow" data-i18n="m3.k">الجسم</span>
+            <h3 class="u-display text-[19px] mt-2.5 text-ink" data-i18n="m3.t">هل أنا مستمر؟</h3>
+            <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="m3.d">زر واحد لتسجيل التمرين، وسجل
+              وزن، وخريطة نقاط لآخر أربعة عشر يوماً.</p>
+          </div>
+        </article>
+
+        <article class="card p-6 reveal">
+          <span class="material-symbols-outlined text-[26px] text-brand">local_fire_department</span>
+          <span class="u-eyebrow block mt-4" data-i18n="m4.k">العادات</span>
+          <h3 class="u-display text-[19px] mt-2 text-ink" data-i18n="m4.t">ما الذي أكرّره؟</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="m4.d">عادات تضيفها بنفسك، كل واحدة
+            بسلسلة أيام وخريطة نقاط خاصة بها.</p>
+        </article>
+
+        <article class="card p-6 reveal">
+          <span class="material-symbols-outlined text-[26px] text-brand">psychology</span>
+          <span class="u-eyebrow block mt-4" data-i18n="m5.k">العصف</span>
+          <h3 class="u-display text-[19px] mt-2 text-ink" data-i18n="m5.t">أين أكتب الفكرة؟</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2.5" data-i18n="m5.d">ملاحظات منسّقة داخل مجلدات، مع
+            تثبيت للمهم منها.</p>
+        </article>
+
+        <article class="card p-6 bg-ink !border-ink reveal">
+          <span class="material-symbols-outlined text-[26px] text-brand-2">devices</span>
+          <span class="u-eyebrow block mt-4 !text-brand-3" data-i18n="m6.k">في كل مكان</span>
+          <h3 class="u-display text-[19px] mt-2 text-white" data-i18n="m6.t">يعمل من المتصفح</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-brand-3/80 mt-2.5" data-i18n="m6.d">لا تثبيت ولا متجر تطبيقات.
+            افتحه من الجوال أو الحاسب، وبياناتك تتبعك.</p>
+        </article>
+
       </div>
     </div>
+  </section>
 
-    <!-- ============ MONEY ============ -->
-    <div id="paneMoney" class="hidden">
-      <div class="counter">
-        <div><div class="num" id="mDebtLeft">—</div><div class="lbl">متبقي ديوني</div></div>
-        <div><div class="num" id="mRecv">—</div><div class="lbl">مستحقات معلقة</div></div>
-        <div><div class="num" id="mLeak">—</div><div class="lbl">مصاريف الشهر</div></div>
+  <!-- ═══════════ HOW IT WAS BUILT ═══════════ -->
+  <section id="build" class="bg-white border-y border-line py-20">
+    <div class="max-w-shell mx-auto px-5">
+      <div class="text-center mb-12 reveal">
+        <span class="u-eyebrow bracket" data-i18n="build.eyebrow">من الصفر إلى الإطلاق</span>
+        <h2 class="u-display text-[32px] sm:text-[38px] mt-4 text-ink" data-i18n="build.t">أربع مراحل، بالترتيب</h2>
       </div>
 
-      <div class="card">
-        <h2>💳 الديون</h2>
-        <div id="debtCatChips" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap"></div>
-        <div id="debtsList"><div style="text-align:center;color:var(--muted);padding:10px;font-size:13px">...</div></div>
-        <button class="ghost" onclick="openDebtForm()">＋ إضافة دين</button>
-        <div id="addDebtWrap" class="hidden">
-          <div class="row2"><input type="text" id="ndName" placeholder="الاسم"><input type="tel" id="ndAmt" inputmode="decimal" placeholder="المبلغ"></div>
-          <input type="text" id="ndNote" placeholder="ملاحظة (اختياري)" style="margin-top:8px">
-          <button id="debtSaveBtn" onclick="saveDebt()">حفظ الدين</button>
-        </div>
-        <div class="msg" id="debtMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2 id="recvTitle">المستحقات</h2>
-        <div id="recvList"></div>
-        <button class="ghost" onclick="openRecvForm()">＋ إضافة مستحق</button>
-        <div id="addRecvWrap" class="hidden">
-          <div class="row2"><input type="text" id="nrName" placeholder="الجهة/الوصف"><input type="tel" id="nrAmt" inputmode="decimal" placeholder="المبلغ"></div>
-          <button id="recvSaveBtn" onclick="saveRecv()">حفظ المستحق</button>
-        </div>
-        <div class="msg" id="recvMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>☕ مصاريف اليوم (التسرّب)</h2>
-        <div id="leakBarWrap">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span id="leakTxt">—</span><span id="leakBudgetTxt">—</span></div>
-          <div class="bar"><div id="leakBar" style="width:0%"></div></div>
-        </div>
-        <div id="expChips" style="margin-top:10px"></div>
-        <div class="row2" style="margin-top:8px">
-          <input type="tel" id="expAmt" inputmode="decimal" placeholder="المبلغ">
-          <button id="expSaveBtn" style="margin:0;width:90px" onclick="saveExp()">سجّل</button>
-        </div>
-        <div id="expList"></div>
-        <div class="msg" id="expMsg"></div>
-      </div>
+      <ol class="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-line border border-line">
+        <li class="bg-white p-7 reveal">
+          <span class="u-latin text-[13px] text-brand-3">01</span>
+          <h3 class="u-display text-[17px] mt-3 text-ink" data-i18n="b1.t">التصميم</h3>
+          <p class="u-body text-[13.5px] leading-[1.8] text-muted mt-2" data-i18n="b1.d">توليد الشاشات وربطها كتدفّق
+            قابل للتجربة قبل كتابة أي سطر.</p>
+          <span class="u-latin text-[12px] text-muted-2 mt-4 block">Stitch</span>
+        </li>
+        <li class="bg-white p-7 reveal">
+          <span class="u-latin text-[13px] text-brand-3">02</span>
+          <h3 class="u-display text-[17px] mt-3 text-ink" data-i18n="b2.t">البناء</h3>
+          <p class="u-body text-[13.5px] leading-[1.8] text-muted mt-2" data-i18n="b2.d">تحويل التصميم إلى واجهة تعمل،
+            خطوة بخطوة ومع مراجعة كل تغيير.</p>
+          <span class="u-latin text-[12px] text-muted-2 mt-4 block">Antigravity</span>
+        </li>
+        <li class="bg-white p-7 reveal">
+          <span class="u-latin text-[13px] text-brand-3">03</span>
+          <h3 class="u-display text-[17px] mt-3 text-ink" data-i18n="b3.t">القاعدة</h3>
+          <p class="u-body text-[13.5px] leading-[1.8] text-muted mt-2" data-i18n="b3.d">تسجيل دخول وقاعدة بيانات لحظية،
+            مع قواعد وصول تعزل بيانات كل مستخدم.</p>
+          <span class="u-latin text-[12px] text-muted-2 mt-4 block">Firebase</span>
+        </li>
+        <li class="bg-white p-7 reveal">
+          <span class="u-latin text-[13px] text-brand-3">04</span>
+          <h3 class="u-display text-[17px] mt-3 text-ink" data-i18n="b4.t">النشر</h3>
+          <p class="u-body text-[13.5px] leading-[1.8] text-muted mt-2" data-i18n="b4.d">استضافة ثابتة مجانية، وتحديث
+            مباشر مع كل دفعة جديدة.</p>
+          <span class="u-latin text-[12px] text-muted-2 mt-4 block">GitHub Pages</span>
+        </li>
+      </ol>
     </div>
+  </section>
 
-    <!-- ============ BODY ============ -->
-    <div id="paneBody" class="hidden">
-      <div class="counter">
-        <div><div class="num" id="bWeek">0</div><div class="lbl">تمارين الأسبوع</div></div>
-        <div><div class="num" id="bStreak">0</div><div class="lbl">أيام متتالية</div></div>
-        <div><div class="num" id="bWeight">—</div><div class="lbl">آخر وزن</div></div>
-      </div>
-      <div class="card">
-        <h2>🏋️ تمرين اليوم</h2>
-        <button id="gymBtn" style="margin-top:2px" onclick="toggleWorkout()">سجّلت تمريني اليوم ✅</button>
-        <div id="last14" class="dots" style="margin-top:14px;justify-content:center"></div>
-        <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:4px">آخر 14 يوم</div>
-        <div class="msg" id="gymMsg"></div>
-      </div>
-      <div class="card">
-        <h2>⚖️ الوزن</h2>
-        <div class="row2">
-          <input type="tel" id="wKg" inputmode="decimal" placeholder="وزن اليوم (كجم)">
-          <button style="margin:0;width:90px" onclick="addWeight()">حفظ</button>
-        </div>
-        <div class="chart-card"><canvas id="weightChart" height="180"></canvas></div>
-        <div class="msg" id="wMsg"></div>
+  <!-- ═══════════ PRIVACY ═══════════ -->
+  <section id="privacy" class="py-20">
+    <div class="max-w-shell mx-auto px-5 grid lg:grid-cols-3 gap-8">
+      <div class="reveal">
+        <span class="u-eyebrow bracket" data-i18n="pv.eyebrow">بياناتك</span>
+        <h2 class="u-display text-[30px] leading-[1.25] mt-4 text-ink" data-i18n="pv.t">اقرأ هذا قبل أن تسجّل الدخول
+        </h2>
       </div>
 
-      <div class="card">
-        <h2>📥 استيراد البيانات</h2>
-        <label>Lyfta — تمارين (CSV)</label>
-        <input type="file" id="fileLyfta" accept=".csv,text/csv" onchange="importLyfta(this)">
-        <label>MyFitnessPal — تغذية (CSV)</label>
-        <input type="file" id="fileMFP" accept=".csv,text/csv" onchange="importMFP(this)">
-        <div class="msg" id="impMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>📊 تحليل التدريب</h2>
-        <div id="trainEmpty" style="text-align:center;color:var(--muted);font-size:12.5px;padding:8px">استورد ملف Lyfta ليظهر التحليل</div>
-        <div id="trainWrap" class="hidden">
-          <div id="bwChips" style="margin-bottom:4px">
-            <span class="chip active" onclick="setBodyWin(56,this)">٨ أسابيع</span>
-            <span class="chip" onclick="setBodyWin(84,this)">١٢ أسبوع</span>
-            <span class="chip" onclick="setBodyWin(0,this)">كل البيانات</span>
-          </div>
-          <div class="sec-h">الحجم الأسبوعي (كجم)</div>
-          <div class="chart-card"><canvas id="volChart" height="170"></canvas></div>
-          <div class="sec-h">تقدّم التمرين — 1RM تقديري</div>
-          <select id="exSelect" onchange="selEx=this.value;renderExChart()"></select>
-          <div class="chart-card"><canvas id="exChart" height="170"></canvas></div>
-          <div class="sec-h">أرقامك القياسية 🏆</div>
-          <div id="prList"></div>
+      <div class="lg:col-span-2 grid sm:grid-cols-2 gap-6">
+        <div class="card p-6 reveal">
+          <span class="material-symbols-outlined text-[24px] text-brand">shield_person</span>
+          <h3 class="u-display text-[16px] mt-4 text-ink" data-i18n="pv1.t">بياناتك لك وحدك</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2" data-i18n="pv1.d">كل سجل مرتبط بمعرّف حسابك،
+            وقواعد الوصول تمنع أي حساب آخر من قراءته.</p>
         </div>
-      </div>
-
-      <div class="card">
-        <h2>🍽️ تحليل التغذية</h2>
-        <div id="nutEmpty" style="text-align:center;color:var(--muted);font-size:12.5px;padding:8px">استورد ملف MyFitnessPal ليظهر التحليل</div>
-        <div id="nutWrap" class="hidden">
-          <div id="nutBars"></div>
-          <div class="sec-h">السعرات يومياً</div>
-          <div class="chart-card"><canvas id="calChart" height="170"></canvas></div>
+        <div class="card p-6 reveal">
+          <span class="material-symbols-outlined text-[24px] text-brand">block</span>
+          <h3 class="u-display text-[16px] mt-4 text-ink" data-i18n="pv2.t">لا بيع ولا تتبّع</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2" data-i18n="pv2.d">لا إعلانات، ولا أدوات تحليل
+            خارجية، ولا مشاركة مع طرف ثالث.</p>
         </div>
-      </div>
-    </div>
-
-    <!-- ============ HABITS ============ -->
-    <div id="paneHabits" class="hidden">
-      <div class="card">
-        <h2>🔥 عاداتي</h2>
-        <div id="habitsList"></div>
-        <button class="ghost" onclick="openHabForm()">＋ عادة جديدة</button>
-        <div id="addHabWrap" class="hidden">
-          <div class="row2"><input type="text" id="nhIcon" placeholder="👍" style="width:70px;flex:none;text-align:center"><input type="text" id="nhName" placeholder="اسم العادة"></div>
-          <button id="habSaveBtn" onclick="saveHab()">حفظ العادة</button>
-        </div>
-        <div class="msg" id="habMsg"></div>
-      </div>
-    </div>
-
-    <!-- ============ العصف (NOTES) ============ -->
-    <div id="paneNotes" class="hidden">
-      <div id="nvFolders">
-        <div class="card">
-          <h2>📝 العصف</h2>
-          <input type="text" id="noteSearch" placeholder="🔎 بحث في كل الملاحظات..." oninput="searchNotes()">
-          <div id="searchResults"></div>
-          <div id="foldersList" style="margin-top:6px"></div>
-          <button class="ghost" onclick="openFolderForm()">＋ مجلد جديد</button>
-          <div id="addFolderWrap" class="hidden">
-            <div class="row2"><input type="text" id="nfIcon" placeholder="📁" style="width:70px;flex:none;text-align:center"><input type="text" id="nfName" placeholder="اسم المجلد"></div>
-            <button id="folderSaveBtn" onclick="saveFolder()">حفظ المجلد</button>
-          </div>
-          <div class="msg" id="folderMsg"></div>
-        </div>
-      </div>
-      <div id="nvNotes" class="hidden">
-        <div class="card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <button class="ico" style="font-size:18px;padding:4px 8px" onclick="notesBack('nvFolders')">→</button>
-            <h2 style="margin:0;flex:1" id="nvFolderName">—</h2>
-          </div>
-          <div id="labelChips"></div>
-          <div id="notesList"></div>
-          <button onclick="newNote()">＋ ملاحظة جديدة</button>
-          <div class="msg" id="notesMsg"></div>
-        </div>
-      </div>
-      <div id="nvEditor" class="hidden">
-        <div class="card">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <button class="ico" style="font-size:18px;padding:4px 8px" onclick="notesBack('nvNotes')">→</button>
-            <span id="saveState" style="font-size:11px;color:var(--muted);flex:1;text-align:left">—</span>
-            <button class="ico" id="pinBtn" onclick="togglePin()">📌</button>
-            <button class="del" style="font-size:14px" onclick="delNote()">🗑️</button>
-          </div>
-          <input type="text" id="edTitle" placeholder="العنوان" oninput="noteDirty()" style="font-weight:700">
-          <div id="edLabels" style="margin-top:8px"></div>
-          <div class="toolbar" id="edToolbar">
-            <button class="tb h" id="tbH2" onmousedown="event.preventDefault()" onclick="fmtBlock('h2')">عنوان</button>
-            <button class="tb h" id="tbH3" onmousedown="event.preventDefault()" onclick="fmtBlock('h3')">فرعي</button>
-            <button class="tb" id="tbP" onmousedown="event.preventDefault()" onclick="fmtBlock('p')">نص</button>
-            <button class="tb" id="tbB" style="font-weight:700" onmousedown="event.preventDefault()" onclick="fmtInline('bold')">B</button>
-            <button class="tb" id="tbI" style="font-style:italic" onmousedown="event.preventDefault()" onclick="fmtInline('italic')">I</button>
-            <button class="tb" id="tbChk" onmousedown="event.preventDefault()" onclick="fmtChecklist()">☑️ مهام</button>
-            <button class="tb" id="tbUL" onmousedown="event.preventDefault()" onclick="fmtInline('insertUnorderedList')">• قائمة</button>
-            <button class="tb" id="tbOL" onmousedown="event.preventDefault()" onclick="fmtInline('insertOrderedList')">١. ترقيم</button>
-            <button class="tb" onmousedown="event.preventDefault()" onclick="clearFmt()">✖ مسح</button>
-          </div>
-          <div id="edBody" contenteditable="true" dir="rtl" data-ph="اكتب هنا..." oninput="noteDirty()" onkeyup="syncToolbar()" onmouseup="syncToolbar()" onfocus="syncToolbar()"></div>
+        <div class="card p-6 sm:col-span-2 !border-accent/40 bg-accent/5 reveal">
+          <span class="material-symbols-outlined text-[24px] text-accent">warning</span>
+          <h3 class="u-display text-[16px] mt-4 text-ink" data-i18n="pv3.t">هذه نسخة تجريبية</h3>
+          <p class="u-body text-[14px] leading-[1.8] text-muted mt-2" data-i18n="pv3.d">التطبيق مشروع تعليمي قيد
+            التطوير، وقد تُحذف البيانات أو يتغيّر شكلها بين الإصدارات. لا تُدخل معلومات حساسة أو أرقاماً لا تحتمل
+            الضياع.</p>
         </div>
       </div>
     </div>
+  </section>
 
-    <!-- ============ SETTINGS ============ -->
-
-    <!-- ============ العملاء المرتقبون (LEADS) ============ -->
-    <div id="paneLeads" class="hidden">
-      <div class="card">
-        <h2>🎯 العملاء المرتقبون</h2>
-        <div id="ldStats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
-        <div id="ldFilters" style="margin-bottom:12px"></div>
-        <div id="ldList"></div>
-        <button class="ghost" onclick="ldToggleForm()">＋ إضافة عملاء</button>
-        <div id="ldFormWrap" class="hidden" style="margin-top:10px">
-          <div class="row2">
-            <input type="text" id="ldName" placeholder="اسم النشاط">
-            <input type="text" id="ldCity" placeholder="المدينة" style="max-width:130px">
-          </div>
-          <div class="row2" style="margin-top:8px">
-            <input type="tel" id="ldPhone" placeholder="05XXXXXXXX" inputmode="tel">
-            <select id="ldCase"></select>
-          </div>
-          <button id="ldSaveBtn" onclick="ldSave()" style="margin-top:8px">حفظ العميل</button>
-          <div style="border-top:1px solid var(--line-soft);margin:14px 0 10px"></div>
-          <div class="meta" style="margin-bottom:6px">أو الصق دفعة — سطر لكل عميل: الاسم | المدينة | الجوال</div>
-          <textarea id="ldBulk" rows="4" placeholder="كافيه المراسم | بريدة | 0551234567"></textarea>
-          <button class="ghost" onclick="ldBulkAdd()" style="margin-top:8px">إضافة القائمة كاملة</button>
-        </div>
-        <div class="msg" id="ldMsg"></div>
-      </div>
-
-      <div class="card hidden" id="ldPanel">
-        <h2 id="ldPanelName">—</h2>
-        <div class="meta" id="ldPanelSub" style="margin-bottom:12px"></div>
-        <div class="row2">
-          <select id="ldPanelCase" onchange="ldPanelRender()"></select>
-          <select id="ldPanelFlow" onchange="ldPanelRender()"></select>
-        </div>
-        <div id="ldPanelTip" class="meta" style="margin:8px 0"></div>
-        <div id="ldPanelText" style="background:var(--card2);border:1px dashed var(--line);border-radius:11px;padding:14px;white-space:pre-wrap;line-height:1.95;font-size:13.5px;margin-bottom:12px"></div>
-        <div class="row2">
-          <button onclick="ldSendWa()">📲 واتساب + تسجيل</button>
-          <button class="ghost" onclick="ldCopyMsg()">نسخ</button>
-        </div>
-        <div class="row2" style="margin-top:10px">
-          <select id="ldPanelStage" onchange="ldSetStage(this.value)"></select>
-          <input type="date" id="ldPanelFu" onchange="ldSetFollowup(this.value)">
-        </div>
-        <div style="border-top:1px solid var(--line-soft);margin:14px 0 10px"></div>
-        <div class="meta" style="margin-bottom:8px">السجل</div>
-        <div id="ldTimeline"></div>
-        <button class="ghost" onclick="ldClose()" style="margin-top:10px">إغلاق</button>
-        <div class="msg" id="ldPanelMsg"></div>
+  <!-- ═══════════ CTA ═══════════ -->
+  <section class="bg-ink text-white py-20">
+    <div class="max-w-shell mx-auto px-5 text-center reveal">
+      <h2 class="u-display text-[34px] sm:text-[42px] leading-[1.2]" data-i18n="cta.t">جرّبه اليوم، وقرّر بنفسك</h2>
+      <p class="u-body text-[16px] text-brand-3 mt-4 max-w-[34rem] mx-auto" data-i18n="cta.d">تسجيل الدخول يستغرق
+        ثانيتين، والخروج يمسح جلستك فوراً.</p>
+      <div class="flex flex-wrap gap-3 justify-center mt-9">
+        <a href="./app.html" class="btn btn-primary" data-i18n="cta.b1">افتح التطبيق</a>
       </div>
     </div>
+  </section>
 
-    <div id="paneSettings" class="hidden">
-      <div class="card">
-        <h2>⚙️ الإعدادات</h2>
-        <label>الاسم الظاهر</label>
-        <input type="text" id="stName" placeholder="اسمك">
-        <label>عنوان قسم المستحقات</label>
-        <input type="text" id="stRecvTitle" placeholder="المستحقات">
-        <label>حد مصاريف الشهر (ريال)</label>
-        <input type="tel" id="stBudget" inputmode="decimal" placeholder="1000">
-        <label>الوزن المستهدف (كجم)</label>
-        <input type="tel" id="stTarget" inputmode="decimal" placeholder="اختياري">
-        <label>هدف السعرات اليومي (kcal)</label>
-        <input type="tel" id="stCal" inputmode="decimal" placeholder="مثال: 2400">
-        <label>هدف البروتين اليومي (جم)</label>
-        <input type="tel" id="stProtein" inputmode="decimal" placeholder="مثال: 150">
-        <label>هدف الماء اليومي (مل)</label>
-        <input type="tel" id="stWater" inputmode="decimal" placeholder="مثال: 3000">
-        <button onclick="saveSettings()">حفظ الإعدادات</button>
-        <div class="msg" id="stMsg"></div>
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer class="bg-ink border-t border-white/10 text-white/70 py-10">
+    <div class="max-w-shell mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-5 text-[13px]">
+      <div class="flex items-center gap-3">
+        <svg width="24" height="21" viewBox="0 0 34 30" fill="none" aria-hidden="true">
+          <path d="M2 2 L11 28" stroke="#38bdf8" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M16 2 L25 28" stroke="#0ea5e9" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M32 2 L23 28" stroke="#7dd3fc" stroke-width="3.2" stroke-linecap="round" />
+        </svg>
+        <span class="u-latin text-white text-[15px]">DaObserver</span>
+        <span class="text-white/30">·</span>
+        <span data-i18n="foot.tag">عينك على يومك</span>
       </div>
-
-      <div class="card">
-        <h2>💳 فئات الديون</h2>
-        <div id="debtCatList"></div>
-        <button class="ghost" onclick="openDebtCatForm()">＋ فئة جديدة</button>
-        <div id="addDebtCatWrap" class="hidden">
-          <input type="text" id="dcName" placeholder="اسم الفئة">
-          <button id="debtCatSaveBtn" onclick="saveDebtCat()">حفظ الفئة</button>
-        </div>
-        <div class="msg" id="debtCatMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🏷️ فئات المصاريف</h2>
-        <div id="catList"></div>
-        <button class="ghost" onclick="openCatForm()">＋ فئة جديدة</button>
-        <div id="addCatWrap" class="hidden">
-          <div class="row2"><input type="text" id="ncIcon" placeholder="📦" style="width:70px;flex:none;text-align:center"><input type="text" id="ncName" placeholder="اسم الفئة"></div>
-          <button id="catSaveBtn" onclick="saveCat()">حفظ الفئة</button>
-        </div>
-        <div class="msg" id="catMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🏷️ فئات الملاحظات</h2>
-        <div id="labelList"></div>
-        <button class="ghost" onclick="openLabelForm()">＋ فئة جديدة</button>
-        <div id="addLabelWrap" class="hidden">
-          <input type="text" id="nlName" placeholder="اسم الفئة">
-          <div id="nlColors" style="margin-top:8px"></div>
-          <button id="labelSaveBtn" onclick="saveLabel()">حفظ الفئة</button>
-        </div>
-        <div class="msg" id="labelMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🗂️ الأرشيف</h2>
-        <div class="sec-h">ديون مؤرشفة</div>
-        <div id="archDebts"></div>
-        <div class="sec-h">عادات موقوفة</div>
-        <div id="archHabits"></div>
-        <div class="msg" id="archMsg"></div>
-      </div>
-
-      <div class="card">
-        <h2>🛟 نسخة احتياطية</h2>
-        <p style="font-size:12.5px;color:var(--muted);line-height:1.9;margin-bottom:4px">ملف واحد فيه كل بياناتك — ديون، سدادات، مصاريف، مهام، عادات، ملاحظات، تمارين وتغذية.<br>احفظه في جهازك، ولا ترفعه على GitHub.</p>
-        <button id="backupBtn" onclick="exportBackup()">تصدير كل بياناتي (JSON)</button>
-        <div class="msg" id="backupMsg"></div>
+      <div class="flex items-center gap-6">
+        <a href="#privacy" class="hover:text-white transition-colors" data-i18n="foot.privacy">بياناتك</a>
+        <span class="text-white/40" data-i18n="foot.copy">مشروع تعليمي · 2026</span>
       </div>
     </div>
+  </footer>
 
-    <div class="signoff">عينك على يومك 👁️ · ٢٠٢٦</div>
-  </div>
-</div>
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       i18n — single dictionary, keys match data-i18n attributes
+       ══════════════════════════════════════════════════════════ */
+    const I18N = {
+      ar: {
+        "top.badge": "مشروع تخرّج · جامعة القصيم",
+        "nav.open": "افتح التطبيق",
+        "nav.home": "الرئيسية", "nav.why": "لماذا", "nav.modules": "الوحدات",
+        "nav.build": "كيف بُني", "nav.privacy": "بياناتك", "nav.source": "الشيفرة المصدرية",
 
-<script>
-if (typeof supabase === 'undefined') {
-  document.body.innerHTML = '<div style="color:#e5604f;text-align:center;padding:40px;font-family:sans-serif">فشل تحميل مكتبة الاتصال — تأكد من الإنترنت وحدّث الصفحة</div>';
-  throw new Error('supabase-js failed to load');
-}
-const SUPABASE_URL = "https://mlmsqmjicowzclvvybxf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_A6wQspO_mQq8ANZHrCrNFQ_iJB4hc4J";
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        "hero.eyebrow": "مشروع تعليمي مفتوح",
+        "hero.title1": "عينك على يومك",
+        "hero.title2": "في مكان واحد",
+        "hero.sub": "مهامك، مالك، جسمك وعاداتك — أربع جهات تسحبك كل يوم، جمعناها في تطبيق واحد بسيط. مجاني بالكامل، وبُني كمشروع تعلّم من الصفر حتى الإطلاق.",
+        "hero.cta1": "ابدأ الآن مجاناً", "hero.cta2": "شاهد الوحدات",
+        "hero.note": "تسجيل الدخول بحساب جوجل · لا بطاقة ولا اشتراك",
 
-const $=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dstr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const todayStr=()=>dstr(new Date());
-const tomorrowStr=()=>{const d=new Date();d.setDate(d.getDate()+1);return dstr(d)};
-const curMonth=()=>todayStr().slice(0,7);
-const fmtTime=t=>{if(!t)return'';const[h,m]=t.split(':').map(Number);return `${h%12||12}:${String(m).padStart(2,'0')} ${h<12?'ص':'م'}`};
-const arDate=iso=>new Date(iso+'T00:00:00').toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
-const msg=(id,t,ty)=>{const e=$(id);e.textContent=t;e.className='msg '+ty;if(ty==='ok')setTimeout(()=>{e.className='msg'},2600)};
-const fail=(id,error)=>{if(!error)return false;msg(id,'خطأ: '+(error.message||'غير متوقع'),'err');return true};
-const fmt=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:0});
-const LABEL_COLORS=['#6fd9a6','#d8bd84','#e5604f','#7ab8e8','#c78be0','#8a9a91'];
-const MOTTOS={today:'اكتبها الليلة، تستقبلك الصبح.',money:'التسرّب يُرى قبل أن يُغرق.',body:'الالتزام يُوثَّق هنا، والتمرين في Lyfta.',habits:'القليل الدائم يغلب الكثير المنقطع.',notes:'أكتب لأرى ما أفكر فيه.',leads:'الرسالة الأولى تطلب رداً، لا صفقة.',settings:'هنا تُضبط الأدوات.'};
+        "f1.t": "متابعة يومية", "f1.d": "مهام اليوم وخطة الغد في شاشة واحدة، مع تنبيه للمتأخر منها.",
+        "f2.t": "وعي مالي", "f2.d": "ديونك، مستحقاتك، ومصاريف اليوم مقابل حدّ تضعه بنفسك.",
+        "f3.t": "انضباط جسدي", "f3.d": "سجّل تمرينك ووزنك، وتابع سلسلة أيامك المتصلة.",
+        "f4.t": "عادات تتراكم", "f4.d": "تتبّع بسيط بنقطة واحدة في اليوم — الاستمرارية تبني نفسها.",
 
-// --- rich text helpers (v3.3) ---
-const ALLOWED_TAGS=new Set(['P','BR','DIV','B','STRONG','I','EM','U','H2','H3','UL','OL','LI']);
-const KEEP_ATTRS={UL:['data-chk'],LI:['data-done']};
-function sanitizeHtml(html){
-  const box=document.createElement('div');
-  box.innerHTML=String(html||'');
-  box.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(n=>n.remove());
-  const walk=root=>{
-    [...root.children].forEach(el=>{
-      walk(el);
-      [...el.attributes].forEach(a=>{
-        const keep=(KEEP_ATTRS[el.tagName]||[]).includes(a.name);
-        if(!keep)el.removeAttribute(a.name);
+        "band.t": "مجاني بالكامل. بلا إعلانات، بلا اشتراك.",
+        "band.d": "مشروع تعليمي — الهدف منه التعلّم والمشاركة، لا الربح.",
+        "band.cta": "افتح التطبيق",
+        "stack.label": "بُني بأدوات مفتوحة ومجانية",
+
+        "why.eyebrow": "عن المشروع",
+        "why.t": "بدأ كتمرين، وانتهى كأداة أستخدمها كل يوم",
+        "why.d1": "كنت أتنقّل بين أربعة تطبيقات: واحد للمهام، وآخر للمصاريف، وثالث للتمرين، ودفتر للملاحظات. لا أحد منها يعرف عن الآخر شيئاً، ولا أحد منها مصمّم للعربية أصلاً.",
+        "why.d2": "<span class='u-latin'>DaObserver</span> هو محاولة لجمعها كلها في سطح واحد — وفي الوقت نفسه مشروع أتعلّم منه بناء تطبيق كامل من الفكرة حتى النشر.",
+        "why.s1": "وحدات", "why.s2": "مجموعة بيانات", "why.s3": "ريال للاستخدام",
+
+        "mod.eyebrow": "الوحدات", "mod.t": "خمس شاشات، لا أكثر",
+        "mod.sub": "كل وحدة تجيب على سؤال واحد. لا إعدادات مدفونة ولا قوائم متشعّبة.",
+        "m1.k": "اليوم", "m1.t": "ماذا عليّ الآن؟", "m1.d": "مهام اليوم، المتأخرات، وخطة الغد التي تكتبها الليلة فتستقبلك في الصباح.",
+        "m2.k": "المال", "m2.t": "أين يذهب؟", "m2.d": "ديون بنسبة سداد مرئية، مستحقات معلّقة، ومصاريف يومية مقابل حدّ تضعه.",
+        "m3.k": "الجسم", "m3.t": "هل أنا مستمر؟", "m3.d": "زر واحد لتسجيل التمرين، وسجل وزن، وخريطة نقاط لآخر أربعة عشر يوماً.",
+        "m4.k": "العادات", "m4.t": "ما الذي أكرّره؟", "m4.d": "عادات تضيفها بنفسك، كل واحدة بسلسلة أيام وخريطة نقاط خاصة بها.",
+        "m5.k": "العصف", "m5.t": "أين أكتب الفكرة؟", "m5.d": "ملاحظات منسّقة داخل مجلدات، مع تثبيت للمهم منها.",
+        "m6.k": "في كل مكان", "m6.t": "يعمل من المتصفح", "m6.d": "لا تثبيت ولا متجر تطبيقات. افتحه من الجوال أو الحاسب، وبياناتك تتبعك.",
+
+        "build.eyebrow": "من الصفر إلى الإطلاق", "build.t": "أربع مراحل، بالترتيب",
+        "b1.t": "التصميم", "b1.d": "توليد الشاشات وربطها كتدفّق قابل للتجربة قبل كتابة أي سطر.",
+        "b2.t": "البناء", "b2.d": "تحويل التصميم إلى واجهة تعمل، خطوة بخطوة ومع مراجعة كل تغيير.",
+        "b3.t": "القاعدة", "b3.d": "تسجيل دخول وقاعدة بيانات لحظية، مع قواعد وصول تعزل بيانات كل مستخدم.",
+        "b4.t": "النشر", "b4.d": "استضافة ثابتة مجانية، وتحديث مباشر مع كل دفعة جديدة.",
+
+        "pv.eyebrow": "بياناتك", "pv.t": "اقرأ هذا قبل أن تسجّل الدخول",
+        "pv1.t": "بياناتك لك وحدك", "pv1.d": "كل سجل مرتبط بمعرّف حسابك، وقواعد الوصول تمنع أي حساب آخر من قراءته.",
+        "pv2.t": "لا بيع ولا تتبّع", "pv2.d": "لا إعلانات، ولا أدوات تحليل خارجية، ولا مشاركة مع طرف ثالث.",
+        "pv3.t": "هذه نسخة تجريبية", "pv3.d": "التطبيق مشروع تعليمي قيد التطوير، وقد تُحذف البيانات أو يتغيّر شكلها بين الإصدارات. لا تُدخل معلومات حساسة أو أرقاماً لا تحتمل الضياع.",
+
+        "cta.t": "جرّبه اليوم، وقرّر بنفسك",
+        "cta.d": "تسجيل الدخول يستغرق ثانيتين، والخروج يمسح جلستك فوراً.",
+        "cta.b1": "افتح التطبيق", "cta.b2": "اطّلع على الشيفرة",
+
+        "foot.tag": "عينك على يومك", "foot.privacy": "بياناتك",
+        "foot.source": "الشيفرة", "foot.copy": "مشروع تعليمي · 2026",
+
+        "_title": "DaObserver — عينك على يومك",
+        "_toggle": "English"
+      },
+
+      en: {
+        "top.badge": "Capstone project · Qassim University",
+        "nav.open": "Open the app",
+        "nav.home": "Home", "nav.why": "Why", "nav.modules": "Modules",
+        "nav.build": "How it was built", "nav.privacy": "Your data", "nav.source": "Source code",
+
+        "hero.eyebrow": "An open educational project",
+        "hero.title1": "Your eye on your day,",
+        "hero.title2": "all in one place",
+        "hero.sub": "Tasks, money, body and habits — four things pulling at you every day, gathered into one simple app. Completely free, and built as a learning project from zero to launch.",
+        "hero.cta1": "Start free", "hero.cta2": "See the modules",
+        "hero.note": "Sign in with Google · No card, no subscription",
+
+        "f1.t": "Daily follow-through", "f1.d": "Today's tasks and tomorrow's plan on one screen, with overdue items surfaced.",
+        "f2.t": "Money awareness", "f2.d": "Debts, receivables, and today's spending against a limit you set.",
+        "f3.t": "Physical discipline", "f3.d": "Log a workout and your weight, and watch the streak hold.",
+        "f4.t": "Habits that stack", "f4.d": "One tap a day — consistency builds itself.",
+
+        "band.t": "Completely free. No ads, no subscription.",
+        "band.d": "An educational project — built to learn and to share, not to earn.",
+        "band.cta": "Open the app",
+        "stack.label": "Built with free and open tools",
+
+        "why.eyebrow": "About the project",
+        "why.t": "It started as an exercise and became a daily tool",
+        "why.d1": "I was moving between four apps: one for tasks, one for spending, one for training, and a notebook for ideas. None of them knew about the others, and none of them was designed for Arabic in the first place.",
+        "why.d2": "<span class='u-latin'>DaObserver</span> is an attempt to pull all of it onto one surface — and at the same time, a project to learn how a full app gets built from idea to launch.",
+        "why.s1": "Modules", "why.s2": "Data collections", "why.s3": "Cost to use",
+
+        "mod.eyebrow": "Modules", "mod.t": "Five screens, no more",
+        "mod.sub": "Each module answers one question. No buried settings, no nested menus.",
+        "m1.k": "Today", "m1.t": "What's on me now?", "m1.d": "Today's tasks, anything overdue, and the plan you write tonight that greets you in the morning.",
+        "m2.k": "Money", "m2.t": "Where is it going?", "m2.d": "Debts with visible payoff progress, pending receivables, and daily spend against your limit.",
+        "m3.k": "Body", "m3.t": "Am I still going?", "m3.d": "One button to log a workout, a weight log, and a dot map of the last fourteen days.",
+        "m4.k": "Habits", "m4.t": "What am I repeating?", "m4.d": "Habits you define yourself, each with its own streak and dot map.",
+        "m5.k": "Ideas", "m5.t": "Where does it go?", "m5.d": "Formatted notes inside folders, with the important ones pinned.",
+        "m6.k": "Anywhere", "m6.t": "Runs in the browser", "m6.d": "No install, no app store. Open it on your phone or laptop and your data follows.",
+
+        "build.eyebrow": "From zero to launch", "build.t": "Four stages, in order",
+        "b1.t": "Design", "b1.d": "Generate the screens and wire them into a clickable flow before writing a line.",
+        "b2.t": "Build", "b2.d": "Turn the design into a working interface, step by step, reviewing every change.",
+        "b3.t": "Backend", "b3.d": "Sign-in and a live database, with access rules that isolate each user's data.",
+        "b4.t": "Deploy", "b4.d": "Free static hosting, updating live with every push.",
+
+        "pv.eyebrow": "Your data", "pv.t": "Read this before you sign in",
+        "pv1.t": "Your data is yours alone", "pv1.d": "Every record is tied to your account ID, and access rules stop any other account from reading it.",
+        "pv2.t": "No selling, no tracking", "pv2.d": "No ads, no third-party analytics, no sharing with anyone.",
+        "pv3.t": "This is a beta", "pv3.d": "The app is an educational project still under development, and data may be wiped or restructured between versions. Don't enter anything sensitive, or numbers you can't afford to lose.",
+
+        "cta.t": "Try it today and judge for yourself",
+        "cta.d": "Signing in takes two seconds, and signing out clears your session immediately.",
+        "cta.b1": "Open the app", "cta.b2": "Read the source",
+
+        "foot.tag": "Your eye on your day", "foot.privacy": "Your data",
+        "foot.source": "Source", "foot.copy": "Educational project · 2026",
+
+        "_title": "DaObserver — Your eye on your day",
+        "_toggle": "العربية"
+      }
+    };
+
+    const HTML_KEYS = new Set(["why.d2"]); // keys whose value contains markup
+
+    function applyLang(lang) {
+      const dict = I18N[lang];
+      if (!dict) return;
+
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      document.title = dict._title;
+      document.getElementById("lang-toggle").textContent = dict._toggle;
+
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        const val = dict[key];
+        if (val === undefined) return;
+        if (HTML_KEYS.has(key)) el.innerHTML = val;
+        else el.textContent = val;
       });
-      if(!ALLOWED_TAGS.has(el.tagName)){
-        const p=el.parentNode;
-        while(el.firstChild)p.insertBefore(el.firstChild,el);
-        p.removeChild(el);
+
+      try { localStorage.setItem("do_lang", lang); } catch (e) { }
+    }
+
+    document.getElementById("lang-toggle").addEventListener("click", () => {
+      applyLang(document.documentElement.lang === "ar" ? "en" : "ar");
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       Asset fallback — show the dashed placeholder if a PNG/JPG
+       is missing, so a broken path is obvious instead of silent
+       ══════════════════════════════════════════════════════════ */
+    document.querySelectorAll(".asset-missing img").forEach(img => {
+      const wrap = img.closest(".asset-missing");
+      const clear = () => wrap.classList.remove("asset-missing");
+      if (img.complete && img.naturalWidth > 0) clear();
+      else {
+        img.addEventListener("load", clear);
+        img.addEventListener("error", () => { }, { once: true });
       }
     });
-  };
-  walk(box);
-  return box.innerHTML;
-}
-function stripHtml(html){
-  const box=document.createElement('div');
-  box.innerHTML=String(html||'');
-  return (box.textContent||'').replace(/\s+/g,' ').trim();
-}
-function looksLikeHtml(s){return /<(p|div|br|h2|h3|ul|ol|li|b|strong|i|em|u)\b/i.test(String(s||''))}
-function textToHtml(t){
-  const lines=String(t||'').split('\n');
-  return lines.map(l=>l.trim()?`<p>${esc(l)}</p>`:'<p><br></p>').join('');
-}
 
-let me=null, habits=[], debts=[], exps=[], expCats=[], allCats=[], debtCats=[], paymentsByDebt={};
-let curDebtCatId=null, chosenExpCatId=null, openDebtId=null, weightChartObj=null, busy=false;
-let editDebtId=null, editRecvId=null, editExpId=null, editHabId=null, editCatId=null, editTaskId=null, editDebtCatId=null, tasksCache=[];
-let noteFolders=[], noteLabels=[], allNotes=[], curFolder=null, curNote=null, curLabelFilter=null;
-let editFolderId=null, editLabelId=null, chosenLabelColor=LABEL_COLORS[0], saveTimer=null;
-let bodySets=[], bodyNut=[], bodyTargets={}, bodyWin=56, selEx=null, volChartObj=null, exChartObj=null, calChartObj=null;
+    /* ══════════════════════════════════════════════════════════
+       Scroll reveal + active nav link
+       ══════════════════════════════════════════════════════════ */
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// ============ AUTH ============
-async function doLogin(){
-  const l=$('last4').value.trim(),p=$('pin').value.trim();
-  if(l.length!==4||p.length<6)return msg('loginMsg','أدخل البيانات كاملة','err');
-  $('loginBtn').disabled=true;
-  const{error}=await db.auth.signInWithPassword({email:`${l}@example.com`,password:p});
-  $('loginBtn').disabled=false;
-  if(error)return msg('loginMsg','بيانات الدخول غير صحيحة','err');
-  boot();
-}
-async function boot(){
-  const{data:{user}}=await db.auth.getUser();
-  if(!user)return;
-  const{data:bs}=await db.from('ds_settings').select('display_name').maybeSingle();
-  me={id:user.id,full_name:(bs&&bs.display_name)||'أهلاً بك'};
-  const h=new Date().getHours();
-  $('greetLine').textContent=h<12?'صباح الخير ☀️':h<18?'مساء النور 🌤️':'مساء الخير 🌙';
-  $('gName').textContent=me.full_name.split(' ')[0];
-  $('todayDate').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'});
-  $('loginCard').classList.add('hidden');
-  $('app').classList.remove('hidden');
-  showTab('today');
-}
-async function doLogout(){
-  await db.auth.signOut();me=null;
-  $('app').classList.add('hidden');$('loginCard').classList.remove('hidden');
-  $('greetLine').textContent='حيّاك الله';$('gName').textContent='مركز حياتك';$('todayDate').textContent='';
-}
+    if (!reduce && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) { e.target.classList.add("shown"); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
 
-function showTab(t){
-  flushNoteSave();
-  ['Today','Money','Body','Habits','Notes','Leads'].forEach(x=>{
-    $('tab'+x).classList.toggle('active',x.toLowerCase()===t);
-  });
-  ['Today','Money','Body','Habits','Notes','Leads','Settings'].forEach(x=>{
-    $('pane'+x).classList.toggle('hidden',x.toLowerCase()!==t);
-  });
-  $('tabMotto').textContent=MOTTOS[t]||'';
-  if(t==='today')loadToday();
-  if(t==='money')loadMoney();
-  if(t==='body')loadBody();
-  if(t==='habits')loadHabits();
-  if(t==='notes')loadNotes();
-  if(t==='leads')loadLeads();
-  if(t==='settings')loadSettings();
-}
-
-// ============ العملاء المرتقبون (LEADS) — أُضيف بواسطة DaScaper ============
-// عدّل نصوص الرسائل من هنا مباشرة. المتغيرات: {name} {city}
-const LD_ME = 'أحمد', LD_BRAND = 'DaScaper', LD_PAGE = 'https://dascaper.pages.dev';
-
-const LD_CASES = {
-  menu:{label:'حساب نشط بلا منيو واضح', tip:'الأكثر شيوعاً — الملاحظة صادقة وقابلة للتحقق.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-دخلت حساب ${n} أدوّر المنيو قبل لا أجيكم، ولقيته متفرّق بين الستوريات والمنشورات.
-أنا أسوّي صفحات بسيطة تجمع المنيو والموقع والحجز في رابط واحد يفتح بثانية.
-تحب أوريك مثال على جوالك؟ بدون أي التزام.`},
-  branch:{label:'افتتاح فرع جديد', tip:'أقوى توقيت — ميزانية مرصودة وقرار سريع.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-سمعت أن ${n} بيفتح فرع جديد${c?' في '+c:''} — مبروك مقدماً.
-أول أسبوعين هي اللي تصنع الزبون الدائم، وأغلبها يضيع لأن ما فيه مكان واحد يوصل له أهل الحي.
-عندي فكرة تنفع للافتتاح تحديداً. أشرحها لك في رسالتين؟`},
-  ads:{label:'يشغّل إعلاناً ممولاً', tip:'الأسهل إقناعاً — مقتنع بالإعلان، ينقصه الوجهة.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-شفت إعلان ${n} وضغطت عليه، وداني على الحساب مباشرة.
-اللي يضغط إعلان يكون جاهز يقرر — وإذا وصل حساب فيه منشورات كثيرة، يطلع.
-عندي طريقة تخلي نفس الإعلان يوصله لمكان يقرر فيه على طول. أشرحها لك؟`},
-  none:{label:'بلا وجود رقمي واضح', tip:'الملاحظة موجعة وصادقة — لا تزد عليها.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-دوّرت ${n} في قوقل قبل لا أجيكم وما طلع لي شي واضح — لا منيو ولا موقع.
-يعني أي واحد جديد${c?' في '+c:''} يدوّر كافيه، ما يلقاكم.
-هذا شي يتصلح في يومين. تحب أوريك كيف؟`},
-  slow:{label:'موقع بطيء أو قديم', tip:'تجربة يتحقق منها بنفسه في ٥ ثوانٍ.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-فتحت موقع ${n} من جوالي، أخذ وقت يفتح والمنيو نزّل لي ملف.
-الزائر عادة ما ينتظر ولا يحمّل شي.
-عندي نسخة تفتح على طول بلا تحميل. أوريك الفرق بصورتين؟`},
-  busy:{label:'مكان ممتاز وزحمة', tip:'امدح ما رأيت فعلاً — المجاملة العامة تُكشف.',
-    body:(n,c)=>`مساء الخير، أنا ${LD_ME} من ${LD_BRAND}.
-مررت على ${n}${c?' في '+c:''} والمكان ممتاز والزحمة تشهد.
-بس اللي ما جاكم بعد ما يعرف هذا — يدوّر ويلقى غيركم أسرع.
-عندي طريقة تخلي الجديد يلقاكم قبل غيركم. أشرحها لك؟`}
-};
-
-const LD_FLOW = {
-  f1:{label:'متابعة ١ — بعد ٣ أيام', body:(n)=>`مساء الخير مرة ثانية. ما أبي أثقّل عليك.
-أرسل لك مثال جاهز تشوفه في دقيقة، وإذا ما عجبك أتركك بحالك وما أزعجك مرة ثانية.`},
-  f2:{label:'متابعة ٢ — بعد ٧ أيام', body:(n)=>`تمام، أفهم إن الوقت ما يساعد الحين.
-أغلق الملف من طرفي، وإذا احتجت شي بعدين رقمي موجود.
-بالتوفيق لكم في ${n}.`},
-  rep:{label:'بعد ما يرد — هنا يدخل الرابط', body:(n)=>`تمام. هذا نموذج من شغلنا: ${LD_PAGE}
-لو ناسبك، أحتاج ١٥ دقيقة أشوف فيها وضعكم الحالي وأقول لك بصراحة إذا كنتم تحتاجون صفحة من أساسه.
-يناسبك بكرة الصبح ولا العصر؟`}
-};
-
-let ldStages=[], ldItems=[], ldSel=null, ldFilter='all';
-
-const ldPhone = raw => {
-  if(!raw) return '';
-  let d = String(raw).replace(/[٠-٩]/g,x=>x.charCodeAt(0)-0x0660).replace(/\D/g,'').replace(/^00/,'');
-  if(/^9665\d{8}$/.test(d)) return d;
-  if(/^05\d{8}$/.test(d))   return '966'+d.slice(1);
-  if(/^5\d{8}$/.test(d))    return '966'+d;
-  return d;
-};
-const ldStageLabel = k => (ldStages.find(s=>s.key===k)||{}).label_ar || k;
-
-async function loadLeads(){
-  if(!ldStages.length){
-    const {data:st} = await db.from('ds_lead_stages').select('*').order('sort');
-    ldStages = st || [];
-  }
-  const {data,error} = await db.from('ds_leads').select('*').order('created_at',{ascending:false});
-  if(error) return msg('ldMsg','تعذّر التحميل — شغّل ملف الترحيل في Supabase','err');
-  ldItems = data || [];
-  const sel = $('ldCase');
-  if(sel && !sel.options.length)
-    sel.innerHTML = Object.entries(LD_CASES).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('');
-  ldRender();
-}
-
-function ldRender(){
-  const today = todayStr();
-  const due = ldItems.filter(l=>l.next_followup_at && l.next_followup_at <= today && l.stage!=='won' && l.stage!=='lost').length;
-  const cnt = k => ldItems.filter(l=>l.stage===k).length;
-  $('ldStats').innerHTML =
-    `<span class="chip">الكل ${ldItems.length}</span>` +
-    ldStages.map(s=>`<span class="chip">${esc(s.label_ar)} ${cnt(s.key)}</span>`).join('') +
-    (due?`<span class="chip" style="border-color:var(--red);color:var(--red)">متابعة متأخرة ${due}</span>`:'');
-
-  $('ldFilters').innerHTML =
-    [['all','الكل'],['due','متابعة اليوم']].concat(ldStages.map(s=>[s.key,s.label_ar]))
-    .map(([k,l])=>`<span class="chip ${ldFilter===k?'active':''}" onclick="ldSetFilter('${k}')">${esc(l)}</span>`).join(' ');
-
-  let list = ldItems;
-  if(ldFilter==='due') list = ldItems.filter(l=>l.next_followup_at && l.next_followup_at<=today);
-  else if(ldFilter!=='all') list = ldItems.filter(l=>l.stage===ldFilter);
-
-  $('ldList').innerHTML = list.length ? list.map(l=>{
-    const late = l.next_followup_at && l.next_followup_at<=today;
-    return `<div class="item" onclick="ldOpen('${l.id}')" style="cursor:pointer">
-      <div><div class="nm">${esc(l.name)}</div>
-        <div class="meta">${esc(l.city||'—')}${l.phone_e164?' · '+esc(l.phone_e164):''}</div></div>
-      <div style="text-align:left">
-        <div class="meta">${esc(ldStageLabel(l.stage))}</div>
-        ${late?`<div class="meta" style="color:var(--red)">متابعة ${esc(l.next_followup_at)}</div>`:''}
-      </div></div>`;
-  }).join('') : '<div class="meta" style="text-align:center;padding:18px">لا يوجد — أضف عملاءك بالأسفل</div>';
-}
-
-function ldSetFilter(k){ ldFilter=k; ldRender(); }
-function ldToggleForm(){ $('ldFormWrap').classList.toggle('hidden'); }
-
-async function ldSave(){
-  const n=$('ldName').value.trim();
-  if(!n) return msg('ldMsg','اكتب اسم النشاط','err');
-  const {error} = await db.from('ds_leads').insert({
-    name:n, city:$('ldCity').value.trim()||null,
-    phone_raw:$('ldPhone').value.trim()||null, case_key:$('ldCase').value||'menu'
-  });
-  if(error) return msg('ldMsg', /duplicate|unique/i.test(error.message)?'هذا الرقم مسجّل مسبقاً':error.message,'err');
-  ['ldName','ldCity','ldPhone'].forEach(i=>$(i).value='');
-  msg('ldMsg','أُضيف','ok'); loadLeads();
-}
-
-async function ldBulkAdd(){
-  const lines = $('ldBulk').value.split('\n').map(x=>x.trim()).filter(Boolean);
-  if(!lines.length) return msg('ldMsg','الخانة فاضية','err');
-  const rows = lines.map(l=>{
-    const p = l.split(/[|,\t]/).map(x=>x.trim());
-    return { name:p[0], city:p[1]||null, phone_raw:p[2]||null, case_key:'menu' };
-  }).filter(r=>r.name);
-  const {error} = await db.from('ds_leads').insert(rows);
-  if(error) return msg('ldMsg','بعض الصفوف مكررة أو ناقصة: '+error.message,'err');
-  $('ldBulk').value='';
-  msg('ldMsg', `أُضيف ${rows.length}`, 'ok'); loadLeads();
-}
-
-async function ldOpen(id){
-  ldSel = ldItems.find(l=>l.id===id); if(!ldSel) return;
-  $('ldPanel').classList.remove('hidden');
-  $('ldPanelName').textContent = ldSel.name;
-  $('ldPanelSub').textContent = [ldSel.city, ldSel.phone_e164].filter(Boolean).join(' · ') || 'بلا بيانات تواصل';
-  $('ldPanelCase').innerHTML = Object.entries(LD_CASES)
-    .map(([k,v])=>`<option value="${k}"${k===ldSel.case_key?' selected':''}>${esc(v.label)}</option>`).join('');
-  $('ldPanelFlow').innerHTML = '<option value="">— الرسالة الأولى —</option>' +
-    Object.entries(LD_FLOW).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('');
-  $('ldPanelStage').innerHTML = ldStages
-    .map(s=>`<option value="${s.key}"${s.key===ldSel.stage?' selected':''}>${esc(s.label_ar)}</option>`).join('');
-  $('ldPanelFu').value = ldSel.next_followup_at || '';
-  ldPanelRender(); ldTimeline();
-  $('ldPanel').scrollIntoView({behavior:'smooth',block:'start'});
-}
-function ldClose(){ $('ldPanel').classList.add('hidden'); ldSel=null; }
-
-function ldMsgText(){
-  if(!ldSel) return '';
-  const f = $('ldPanelFlow').value;
-  if(f && LD_FLOW[f]) return LD_FLOW[f].body(ldSel.name);
-  const c = LD_CASES[$('ldPanelCase').value] || LD_CASES.menu;
-  return c.body(ldSel.name, ldSel.city||'');
-}
-function ldPanelRender(){
-  $('ldPanelText').textContent = ldMsgText();
-  const f = $('ldPanelFlow').value;
-  $('ldPanelTip').textContent = f ? '' : ((LD_CASES[$('ldPanelCase').value]||{}).tip||'');
-}
-function ldCopyMsg(){
-  const t = ldMsgText();
-  navigator.clipboard.writeText(t).then(()=>msg('ldPanelMsg','نُسخت','ok'),
-    ()=>msg('ldPanelMsg','انسخها يدوياً','err'));
-}
-
-async function ldSendWa(){
-  if(!ldSel) return;
-  const num = ldPhone(ldSel.phone_e164 || ldSel.phone_raw);
-  const body = ldMsgText();
-  const flow = $('ldPanelFlow').value;
-  await db.from('ds_lead_activities').insert({
-    lead_id: ldSel.id, type:'message_sent', channel:'whatsapp',
-    template_key: flow || $('ldPanelCase').value, body
-  });
-  if(ldSel.stage === 'new') await ldSetStage('contacted', true);
-  const d = new Date(Date.now() + 3*864e5).toISOString().slice(0,10);
-  await ldSetFollowup(d, true);
-  if(num) window.open(`https://wa.me/${num}?text=${encodeURIComponent(body)}`,'_blank');
-  else msg('ldPanelMsg','لا يوجد رقم — انسخ الرسالة وأرسلها من إنستقرام','err');
-  await loadLeads(); ldSel = ldItems.find(l=>l.id===ldSel.id); ldTimeline();
-}
-
-async function ldSetStage(k, quiet){
-  if(!ldSel) return;
-  const {error} = await db.from('ds_leads').update({stage:k}).eq('id',ldSel.id);
-  if(error) return msg('ldPanelMsg',error.message,'err');
-  ldSel.stage = k;
-  if(!quiet){ await loadLeads(); ldTimeline(); msg('ldPanelMsg','حُدّثت المرحلة','ok'); }
-}
-async function ldSetFollowup(v, quiet){
-  if(!ldSel) return;
-  await db.from('ds_leads').update({next_followup_at: v||null}).eq('id',ldSel.id);
-  ldSel.next_followup_at = v||null;
-  if(!quiet){ await loadLeads(); msg('ldPanelMsg','حُدّدت المتابعة','ok'); }
-  else if($('ldPanelFu')) $('ldPanelFu').value = v||'';
-}
-
-async function ldTimeline(){
-  if(!ldSel) return;
-  const {data} = await db.from('ds_lead_activities').select('*')
-    .eq('lead_id', ldSel.id).order('occurred_at',{ascending:false}).limit(20);
-  const T = {message_sent:'📤 أُرسلت', reply_received:'📥 ردّ',
-             stage_changed:'🔄 المرحلة', note:'📝 ملاحظة', call:'📞 مكالمة', visit:'🚶 زيارة'};
-  $('ldTimeline').innerHTML = (data&&data.length) ? data.map(a=>{
-    const when = String(a.occurred_at||'').slice(0,16).replace('T',' ');
-    let extra = '';
-    if(a.type==='stage_changed' && a.meta)
-      extra = `${ldStageLabel(a.meta.from)} ← ${ldStageLabel(a.meta.to)}`;
-    else if(a.body) extra = a.body.split('\n')[0].slice(0,54)+'…';
-    return `<div class="item"><div><div class="nm">${T[a.type]||a.type}</div>
-      <div class="meta">${esc(extra)}</div></div><div class="meta">${esc(when)}</div></div>`;
-  }).join('') : '<div class="meta">لا يوجد نشاط بعد</div>';
-}
-
-// ============ TODAY ============
-async function loadToday(){
-  editTaskId=null;$('taskSaveBtn').textContent='جدولة';
-  const t=todayStr(),tm=tomorrowStr();
-  const[{data:od},{data:tt},{data:fut}]=await Promise.all([
-    db.from('ds_tasks').select('*').lt('for_date',t).eq('done',false).order('for_date'),
-    db.from('ds_tasks').select('*').eq('for_date',t).order('due_time',{ascending:true,nullsFirst:false}).order('sort_order'),
-    db.from('ds_tasks').select('*').gt('for_date',t).order('for_date').order('due_time',{ascending:true,nullsFirst:false}).order('sort_order')
-  ]);
-  const overdue=od||[],today=tt||[],future=fut||[];
-  const tmList=future.filter(x=>x.for_date===tm),later=future.filter(x=>x.for_date>tm);
-  tasksCache=[...overdue,...today,...future];
-  const undone=today.filter(x=>!x.done),firstTimed=undone.find(x=>x.due_time);
-  $('morningBrief').textContent=undone.length
-    ?`${undone.length} ${undone.length===1?'مهمة':'مهام'} اليوم${firstTimed?` — أولها ${fmtTime(firstTimed.due_time)}`:''}`
-    :'لا مهام اليوم — يومك مفتوح ✨';
-  $('overdueWrap').classList.toggle('hidden',!overdue.length);
-  $('overdueList').innerHTML=overdue.map(x=>taskRowHtml(x,{cls:'late',meta:arDate(x.for_date),extra:`<button class="ico" onclick="moveToToday(${x.id})" title="نقل لليوم">⤴️</button>`})).join('');
-  const nowT=new Date().toTimeString().slice(0,5);
-  $('todayTasks').innerHTML=today.length
-    ?today.map(x=>taskRowHtml(x,{cls:(!x.done&&x.due_time&&x.due_time.slice(0,5)<=nowT)?'now':''})).join('')
-    :'<div style="text-align:center;color:var(--muted);padding:14px;font-size:13px">لا مهام لليوم — خطط لها من المساء 👇</div>';
-  $('tomorrowTasks').innerHTML=tmList.map(x=>taskRowHtml(x)).join('');
-  if(later.length){
-    let html='',cur='';
-    later.forEach(x=>{if(x.for_date!==cur){cur=x.for_date;html+=`<div class="sec-h">${arDate(x.for_date)}</div>`}html+=taskRowHtml(x)});
-    $('upcomingList').innerHTML=html;
-  }else $('upcomingList').innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:8px">لا مهام مجدولة بعد</div>';
-  loadQuickHabits();
-}
-function taskRowHtml(t,{cls='',meta='',extra=''}={}){
-  const badge=t.due_time?`<span class="tbadge">${fmtTime(t.due_time)}</span>`:'';
-  return `<div class="task ${t.done?'done':''} ${cls}">
-    <div class="tbox" onclick="toggleTask(${t.id},${!t.done})">${t.done?'✓':''}</div>
-    <div class="tt">${esc(t.title)}${badge}${meta?`<div style="color:var(--muted);font-size:11px;margin-top:2px">${meta}</div>`:''}</div>
-    ${extra}
-    <button class="ico" onclick="editTask(${t.id})">✏️</button>
-    <button class="del" onclick="delTask(${t.id})">🗑️</button>
-  </div>`;
-}
-async function addTask(){
-  const t=$('newTask').value.trim();
-  if(!t)return;
-  if(busy)return;busy=true;
-  const{error}=await db.from('ds_tasks').insert({title:t,for_date:tomorrowStr()});
-  busy=false;
-  if(fail('todayMsg',error))return;
-  $('newTask').value='';
-  loadToday();
-}
-function openTaskForm(){
-  const w=$('addTaskWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editTaskId=null;$('tkTitle').value='';$('tkDate').value=tomorrowStr();$('tkTime').value='';$('taskSaveBtn').textContent='جدولة'}
-}
-function editTask(id){
-  const t=tasksCache.find(x=>x.id===id);if(!t)return;
-  editTaskId=id;
-  $('tkTitle').value=t.title;$('tkDate').value=t.for_date;$('tkTime').value=t.due_time?t.due_time.slice(0,5):'';
-  $('taskSaveBtn').textContent='تحديث المهمة';
-  $('addTaskWrap').classList.remove('hidden');
-}
-async function saveTask(){
-  const ti=$('tkTitle').value.trim(),d=$('tkDate').value,tv=$('tkTime').value;
-  if(!ti||!d)return msg('schedMsg','أكمل المهمة والتاريخ','err');
-  if(busy)return;busy=true;
-  const payload={title:ti,for_date:d,due_time:tv||null};
-  const q=editTaskId
-    ? db.from('ds_tasks').update(payload).eq('id',editTaskId)
-    : db.from('ds_tasks').insert(payload);
-  const{error}=await q;
-  busy=false;
-  if(fail('schedMsg',error))return;
-  $('tkTitle').value='';$('tkTime').value='';
-  $('addTaskWrap').classList.add('hidden');
-  loadToday();
-}
-async function moveToToday(id){
-  const{error}=await db.from('ds_tasks').update({for_date:todayStr()}).eq('id',id);
-  if(fail('todayMsg',error))return;
-  loadToday();
-}
-async function toggleTask(id,done){
-  const{error}=await db.from('ds_tasks').update({done}).eq('id',id);
-  if(fail('todayMsg',error))return;
-  loadToday();
-}
-async function delTask(id){
-  const{error}=await db.from('ds_tasks').delete().eq('id',id);
-  if(fail('todayMsg',error))return;
-  loadToday();
-}
-
-async function loadQuickHabits(){
-  const[{data:hs},{data:logs}]=await Promise.all([
-    db.from('ds_habits').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_habit_logs').select('habit_id').eq('on_date',todayStr())
-  ]);
-  habits=hs||[];
-  const done=new Set((logs||[]).map(l=>l.habit_id));
-  $('quickHabits').innerHTML=habits.map(h=>`
-    <div class="hab ${done.has(h.id)?'done':''}" onclick="toggleHabit(${h.id},${done.has(h.id)},'today')">
-      <div class="box">${done.has(h.id)?'✓':esc(h.icon)}</div>
-      <div class="nm">${esc(h.name)}</div>
-    </div>`).join('');
-}
-async function toggleHabit(id,isDone,src){
-  const q=isDone
-    ? db.from('ds_habit_logs').delete().eq('habit_id',id).eq('on_date',todayStr())
-    : db.from('ds_habit_logs').insert({habit_id:id,on_date:todayStr()});
-  const{error}=await q;
-  if(fail(src==='today'?'todayMsg':'habMsg',error))return;
-  if(src==='today')loadQuickHabits();else loadHabits();
-}
-
-// ============ MONEY ============
-function resetMoneyForms(){
-  editDebtId=null;editRecvId=null;editExpId=null;
-  $('debtSaveBtn').textContent='حفظ الدين';
-  $('recvSaveBtn').textContent='حفظ المستحق';
-  $('expSaveBtn').textContent='سجّل';
-}
-async function loadMoney(){
-  resetMoneyForms();
-  const[{data:ds},{data:pays},{data:recv},{data:ex},{data:st},{data:cs},{data:dc}]=await Promise.all([
-    db.from('ds_debts').select('*').eq('active',true).order('amount',{ascending:true}),
-    db.from('ds_payments').select('id,debt_id,amount,paid_on,note'),
-    db.from('ds_receivables').select('*').order('created_at'),
-    db.from('ds_expenses').select('*, ds_expense_categories(name,icon)').gte('spent_on',curMonth()+'-01').order('created_at',{ascending:false}),
-    db.from('ds_settings').select('*').maybeSingle(),
-    db.from('ds_expense_categories').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order')
-  ]);
-  debts=ds||[]; exps=ex||[]; expCats=cs||[]; debtCats=dc||[];
-  paymentsByDebt={};
-  (pays||[]).forEach(p=>{(paymentsByDebt[p.debt_id]=paymentsByDebt[p.debt_id]||[]).push(p)});
-  Object.values(paymentsByDebt).forEach(a=>a.sort((x,y)=>y.paid_on.localeCompare(x.paid_on)));
-  debts.forEach(d=>d.paid=(paymentsByDebt[d.id]||[]).reduce((a,p)=>a+Number(p.amount),0));
-  const activeDebtCats=debtCats.filter(c=>c.active);
-  if(!activeDebtCats.find(c=>c.id===curDebtCatId))curDebtCatId=activeDebtCats[0]?activeDebtCats[0].id:null;
-  const citOff=new Set(debtCats.filter(c=>!c.count_in_total).map(c=>c.id));
-  const ownLeft=debts.filter(d=>!citOff.has(d.category_id)).reduce((a,d)=>a+Math.max(0,d.amount-d.paid),0);
-  const recvPend=(recv||[]).filter(r=>r.status==='pending').reduce((a,r)=>a+Number(r.amount),0);
-  const leakTotal=exps.reduce((a,e)=>a+Number(e.amount),0);
-  $('mDebtLeft').textContent=fmt(ownLeft);
-  $('mRecv').textContent=fmt(recvPend);
-  $('mLeak').textContent=fmt(leakTotal);
-  $('recvTitle').textContent=(st&&st.recv_title)||'المستحقات';
-  if(!expCats.find(c=>c.id===chosenExpCatId))
-    chosenExpCatId=(expCats.find(c=>c.name==='أخرى')||expCats[0]||{}).id||null;
-  renderExpChips();
-  renderDebtChips();
-  renderDebts();
-  $('recvList').innerHTML=(recv||[]).length?(recv||[]).map(r=>`
-    <div class="item"><div><b>${esc(r.name)}</b><div class="meta">${fmt(r.amount)} ريال · ${r.status==='pending'?'⏳ معلق':'✅ استُلم'}</div></div>
-      <span style="display:flex;gap:4px;align-items:center">
-        ${r.status==='pending'?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="markRecv(${r.id})">استلمت ✓</button>`:''}
-        <button class="ico" onclick="editRecv(${r.id})">✏️</button>
-        <button class="del" onclick="delRecv(${r.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">سجّل مستحقاتك هنا لتتابعها</div>';
-  window._recvCache=recv||[];
-  const budget=st?Number(st.monthly_leak_budget):1000;
-  $('leakTxt').textContent=`${fmt(leakTotal)} ريال`;
-  $('leakBudgetTxt').textContent=`الحد: ${fmt(budget)}`;
-  const pct=Math.min(100,budget>0?leakTotal/budget*100:0);
-  $('leakBar').style.width=pct+'%';
-  $('leakBar').style.background=pct>=100?'var(--red)':'';
-  $('expList').innerHTML=exps.slice(0,6).map(e=>{
-    const c=e.ds_expense_categories||{};
-    return `<div class="item"><div><b>${esc(c.icon||'')} ${esc(c.name||'—')}</b><div class="meta">${e.spent_on}</div></div>
-      <span style="display:flex;gap:4px;align-items:center"><b style="color:var(--gold)">${fmt(e.amount)}</b>
-      <button class="ico" onclick="editExp(${e.id})">✏️</button>
-      <button class="del" onclick="delExp(${e.id})">🗑️</button></span></div>`;
-  }).join('');
-}
-function renderDebtChips(){
-  const act=debtCats.filter(c=>c.active);
-  $('debtCatChips').innerHTML=act.length?act.map(c=>
-    `<span class="chip ${c.id===curDebtCatId?'active':''}" onclick="debtCat(${c.id})">${esc(c.name)}</span>`
-  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِف فئات ديونك من ⚙️ الإعدادات</div>';
-}
-function debtCat(id){curDebtCatId=id;renderDebtChips();renderDebts()}
-function renderExpChips(){
-  $('expChips').innerHTML=expCats.length?expCats.map(c=>
-    `<span class="chip ${c.id===chosenExpCatId?'active':''}" onclick="expCat(${c.id})">${esc(c.icon)} ${esc(c.name)}</span>`
-  ).join(''):'<div style="color:var(--muted);font-size:12px;padding:4px 0">لا فئات — أضِفها من ⚙️ الإعدادات</div>';
-}
-function expCat(id){chosenExpCatId=id;renderExpChips()}
-function renderDebts(){
-  if(!curDebtCatId){$('debtsList').innerHTML='<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">أضِف فئة ديون أولاً من ⚙️</div>';return}
-  const list=debts.filter(d=>d.category_id===curDebtCatId);
-  $('debtsList').innerHTML=list.length?list.map(d=>{
-    const left=Math.max(0,d.amount-d.paid);
-    const pct=d.amount>0?Math.min(100,d.paid/d.amount*100):0;
-    const pays=paymentsByDebt[d.id]||[];
-    const paysHtml=openDebtId===d.id?`
-      <div style="margin-top:8px">${pays.length?pays.map(p=>`
-        <div class="item" style="margin-top:6px"><div><b>${fmt(p.amount)}</b><div class="meta">${p.paid_on}${p.note?' · '+esc(p.note):''}</div></div>
-        <button class="del" onclick="delPayment(${p.id})">🗑️</button></div>`).join('')
-        :'<div class="meta" style="text-align:center;padding:6px">لا سدادات بعد</div>'}</div>`:'';
-    return `<div class="item" style="display:block">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><b>${esc(d.name)}</b><div class="meta">${fmt(left)} متبقي من ${fmt(d.amount)}${d.note?' · '+esc(d.note):''}</div></div>
-        <span style="display:flex;gap:2px;align-items:center">
-          ${left>0?`<button style="width:auto;margin:0;padding:7px 10px;font-size:11.5px" onclick="payDebt(${d.id})">سداد 💸</button>`:'<span style="color:var(--green);font-size:12px;font-weight:700">✅ مغلق</span>'}
-          <button class="ico" onclick="togglePays(${d.id})">📜</button>
-          <button class="ico" onclick="editDebt(${d.id})">✏️</button>
-          <button class="ico" onclick="archiveDebt(${d.id})">🗄️</button>
-        </span>
-      </div>
-      <div class="bar"><div style="width:${pct}%"></div></div>
-      ${paysHtml}
-    </div>`;
-  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا ديون في هذي الفئة 🎉</div>';
-}
-function togglePays(id){openDebtId=openDebtId===id?null:id;renderDebts()}
-async function delPayment(id){
-  if(!confirm('حذف هذا السداد؟'))return;
-  const{error}=await db.from('ds_payments').delete().eq('id',id);
-  if(fail('debtMsg',error))return;
-  loadMoney();
-}
-async function payDebt(id){
-  const amt=prompt('كم سدّدت؟ (ريال)');
-  if(!amt||isNaN(parseFloat(amt)))return;
-  const{error}=await db.from('ds_payments').insert({debt_id:id,amount:parseFloat(amt),paid_on:todayStr()});
-  if(fail('debtMsg',error))return;
-  loadMoney();
-}
-function openDebtForm(){
-  const w=$('addDebtWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editDebtId=null;$('ndName').value='';$('ndAmt').value='';$('ndNote').value='';$('debtSaveBtn').textContent='حفظ الدين'}
-}
-function editDebt(id){
-  const d=debts.find(x=>x.id===id);if(!d)return;
-  editDebtId=id;
-  $('ndName').value=d.name;$('ndAmt').value=d.amount;$('ndNote').value=d.note||'';
-  debtCat(d.category_id);
-  $('debtSaveBtn').textContent='تحديث الدين';
-  $('addDebtWrap').classList.remove('hidden');
-}
-async function saveDebt(){
-  const n=$('ndName').value.trim(),a=parseFloat($('ndAmt').value),note=$('ndNote').value.trim()||null;
-  if(!n||isNaN(a))return msg('debtMsg','أكمل الاسم والمبلغ','err');
-  if(!curDebtCatId)return msg('debtMsg','أضِف فئة ديون أولاً من ⚙️ الإعدادات','err');
-  if(busy)return;busy=true;
-  const wasEdit=!!editDebtId;
-  const q=wasEdit
-    ? db.from('ds_debts').update({name:n,amount:a,note,category_id:curDebtCatId}).eq('id',editDebtId)
-    : db.from('ds_debts').insert({name:n,amount:a,note,category_id:curDebtCatId});
-  const{error}=await q;
-  busy=false;
-  if(fail('debtMsg',error))return;
-  $('ndName').value='';$('ndAmt').value='';$('ndNote').value='';
-  $('addDebtWrap').classList.add('hidden');
-  msg('debtMsg',wasEdit?'حُدّث الدين ✅':'أُضيف الدين ✅','ok');
-  loadMoney();
-}
-async function archiveDebt(id){
-  if(!confirm('أرشفة هذا الدين؟ يبقى محفوظاً في ⚙️ الإعدادات'))return;
-  const{error}=await db.from('ds_debts').update({active:false}).eq('id',id);
-  if(fail('debtMsg',error))return;
-  loadMoney();
-}
-function openRecvForm(){
-  const w=$('addRecvWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editRecvId=null;$('nrName').value='';$('nrAmt').value='';$('recvSaveBtn').textContent='حفظ المستحق'}
-}
-function editRecv(id){
-  const r=(window._recvCache||[]).find(x=>x.id===id);if(!r)return;
-  editRecvId=id;
-  $('nrName').value=r.name;$('nrAmt').value=r.amount;
-  $('recvSaveBtn').textContent='تحديث المستحق';
-  $('addRecvWrap').classList.remove('hidden');
-}
-async function saveRecv(){
-  const n=$('nrName').value.trim(),a=parseFloat($('nrAmt').value);
-  if(!n||isNaN(a))return msg('recvMsg','أكمل الجهة والمبلغ','err');
-  if(busy)return;busy=true;
-  const q=editRecvId
-    ? db.from('ds_receivables').update({name:n,amount:a}).eq('id',editRecvId)
-    : db.from('ds_receivables').insert({name:n,amount:a});
-  const{error}=await q;
-  busy=false;
-  if(fail('recvMsg',error))return;
-  $('nrName').value='';$('nrAmt').value='';
-  $('addRecvWrap').classList.add('hidden');
-  loadMoney();
-}
-async function markRecv(id){
-  const{error}=await db.from('ds_receivables').update({status:'received'}).eq('id',id);
-  if(fail('recvMsg',error))return;
-  loadMoney();
-}
-async function delRecv(id){
-  if(!confirm('حذف هذا المستحق؟'))return;
-  const{error}=await db.from('ds_receivables').delete().eq('id',id);
-  if(fail('recvMsg',error))return;
-  loadMoney();
-}
-function editExp(id){
-  const e=exps.find(x=>x.id===id);if(!e)return;
-  editExpId=id;
-  $('expAmt').value=e.amount;
-  chosenExpCatId=e.category_id;
-  renderExpChips();
-  $('expSaveBtn').textContent='تحديث';
-}
-async function saveExp(){
-  const a=parseFloat($('expAmt').value);
-  if(isNaN(a)||a<=0)return msg('expMsg','أدخل المبلغ','err');
-  if(!chosenExpCatId)return msg('expMsg','أضِف فئة من ⚙️ الإعدادات أولاً','err');
-  if(busy)return;busy=true;
-  const q=editExpId
-    ? db.from('ds_expenses').update({amount:a,category_id:chosenExpCatId}).eq('id',editExpId)
-    : db.from('ds_expenses').insert({amount:a,category_id:chosenExpCatId,spent_on:todayStr()});
-  const{error}=await q;
-  busy=false;
-  if(fail('expMsg',error))return;
-  $('expAmt').value='';
-  loadMoney();
-}
-async function delExp(id){
-  if(!confirm('حذف هذا المصروف؟'))return;
-  const{error}=await db.from('ds_expenses').delete().eq('id',id);
-  if(fail('expMsg',error))return;
-  loadMoney();
-}
-// ============ BODY ============
-async function fetchAll(table,cols,orderCol){
-  let out=[],from=0;const page=1000;
-  while(true){
-    const{data,error}=await db.from(table).select(cols).order(orderCol).range(from,from+page-1);
-    if(error||!data)break;
-    out=out.concat(data);
-    if(data.length<page)break;
-    from+=page;
-  }
-  return out;
-}
-async function loadBody(){
-  const from=new Date();from.setDate(from.getDate()-59);
-  const[{data:wo},{data:ws},{data:st}]=await Promise.all([
-    db.from('ds_workouts').select('on_date').gte('on_date',dstr(from)).order('on_date'),
-    db.from('ds_weights').select('*').order('on_date',{ascending:false}).limit(60),
-    db.from('ds_settings').select('cal_target,protein_target,water_target_ml').maybeSingle()
-  ]);
-  bodyTargets={cal:st?Number(st.cal_target)||null:null,prot:st?Number(st.protein_target)||null:null,water:st?Number(st.water_target_ml)||null:null};
-  const dates=new Set((wo||[]).map(w=>w.on_date));
-  let wk=0;for(let i=0;i<7;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))wk++}
-  let st2=0;for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(dates.has(dstr(d)))st2++;else if(i>0)break;else continue}
-  $('bWeek').textContent=wk;
-  $('bStreak').textContent=st2;
-  const doneToday=dates.has(todayStr());
-  $('gymBtn').textContent=doneToday?'✅ تمرين اليوم موثّق — اضغط للتراجع':'سجّلت تمريني اليوم ✅';
-  $('gymBtn').dataset.done=doneToday?'1':'0';
-  let dots='';
-  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${dates.has(dstr(d))?'on':''}"></div>`}
-  $('last14').innerHTML=dots;
-  const weights=(ws||[]).slice().reverse();
-  $('bWeight').textContent=weights.length?Number(weights[weights.length-1].kg):'—';
-  if(weightChartObj)weightChartObj.destroy();
-  if(weights.length){
-    weightChartObj=new Chart($('weightChart'),{
-      type:'line',
-      data:{labels:weights.map(w=>w.on_date.slice(5)),datasets:[{label:'الوزن',data:weights.map(w=>Number(w.kg)),borderColor:'#6fd9a6',backgroundColor:'rgba(111,217,166,.1)',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
-      options:{responsive:true,plugins:{legend:{display:false}},
-        scales:{x:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}},
-                y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}
-    });
-  }
-  bodySets=await fetchAll('ds_workout_sets','on_date,exercise,set_number,reps,weight_kg,volume_kg','on_date');
-  bodyNut=await fetchAll('ds_nutrition_days','*','on_date');
-  renderBodyAnalysis();
-}
-async function toggleWorkout(){
-  let error;
-  if($('gymBtn').dataset.done==='1')({error}=await db.from('ds_workouts').delete().eq('on_date',todayStr()));
-  else ({error}=await db.from('ds_workouts').insert({on_date:todayStr()}));
-  if(fail('gymMsg',error))return;
-  loadBody();
-}
-async function addWeight(){
-  const k=parseFloat($('wKg').value);
-  if(isNaN(k)||k<=0)return msg('wMsg','أدخل وزن صحيح','err');
-  const{error}=await db.from('ds_weights').upsert({on_date:todayStr(),kg:k,user_id:me.id},{onConflict:'user_id,on_date'});
-  if(fail('wMsg',error))return;
-  $('wKg').value='';
-  msg('wMsg','تم حفظ الوزن ⚖️','ok');
-  loadBody();
-}
-
-// ============ CSV IMPORT ============
-const normH=s=>String(s||'').toLowerCase().replace(/[^a-z\u0600-\u06FF0-9]/g,'');
-function pickCol(headers,cands){
-  const hs=headers.map(h=>({raw:h,n:normH(h)}));
-  for(const c of cands){const hit=hs.find(h=>h.n===c);if(hit)return hit.raw}
-  for(const c of cands){const hit=hs.find(h=>h.n.includes(c));if(hit)return hit.raw}
-  return null;
-}
-function parseDateCell(v){
-  if(!v)return null;const s=String(v).trim();
-  const iso=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(iso)return `${iso[1]}-${String(+iso[2]).padStart(2,'0')}-${String(+iso[3]).padStart(2,'0')}`;
-  const p=s.split(/[\/\.\s]+/).filter(Boolean);
-  if(p.length>=3){
-    let d,m,y;
-    if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}
-    else if(p[2].length===4){y=+p[2];const a=+p[0],b=+p[1];if(a>12){d=a;m=b}else if(b>12){d=b;m=a}else{d=a;m=b}}
-    if(y&&m>=1&&m<=12&&d>=1&&d<=31)return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  }
-  const t=Date.parse(s);if(!isNaN(t))return dstr(new Date(t));
-  return null;
-}
-const numV=v=>{const n=parseFloat(String(v??'').replace(/[^\d.\-]/g,''));return isNaN(n)?null:n};
-
-async function importLyfta(inp){
-  const f=inp.files[0];if(!f)return;inp.value='';
-  msg('impMsg','جاري قراءة ملف Lyfta...','ok');
-  Papa.parse(f,{header:true,skipEmptyLines:true,complete:async res=>{
-    const rows=res.data,headers=res.meta.fields||[];
-    const cDate=pickCol(headers,['date','startdate','starttime','workoutdate','day','التاريخ']);
-    const cEx=pickCol(headers,['exercisename','exercisetitle','exercise','movement','التمرين']);
-    const cSet=pickCol(headers,['setorder','setindex','setnumber','set']);
-    const cReps=pickCol(headers,['reps','repetitions','rep','التكرارات']);
-    const cW=pickCol(headers,['weightkg','weightlbs','weight','load','kg','الوزن']);
-    if(!cDate||!cEx)return msg('impMsg','لم أتعرف على أعمدة التاريخ/التمرين — أرسل لي سطر العناوين من الملف','err');
-    const lb=cW&&normH(cW).includes('lb');
-    const out=[],seen=new Set(),setCounter={};let skipped=0;
-    rows.forEach(r=>{
-      const on_date=parseDateCell(r[cDate]);
-      const ex=String(r[cEx]||'').trim();
-      if(!on_date||!ex){skipped++;return}
-      let reps=cReps?numV(r[cReps]):null;
-      let w=cW?numV(r[cW]):null;
-      if(w!=null&&lb)w=Math.round(w*0.45359237*100)/100;
-      let sn=cSet?numV(r[cSet]):null;
-      if(sn==null||sn<1){const k=on_date+'|'+ex;setCounter[k]=(setCounter[k]||0)+1;sn=setCounter[k]}
-      sn=Math.round(sn);
-      const key=on_date+'|'+ex+'|'+sn;
-      if(seen.has(key)){skipped++;return}
-      seen.add(key);
-      const vol=(reps&&w)?Math.round(reps*w*100)/100:null;
-      out.push({user_id:me.id,on_date,exercise:ex,set_number:sn,reps:reps!=null?Math.round(reps):null,weight_kg:w,volume_kg:vol});
-    });
-    if(!out.length)return msg('impMsg','لا صفوف صالحة في الملف'+(skipped?` (تم تجاهل ${skipped})`:''),'err');
-    let err=null;
-    for(let i=0;i<out.length;i+=500){
-      const{error}=await db.from('ds_workout_sets').upsert(out.slice(i,i+500),{onConflict:'user_id,on_date,exercise,set_number'});
-      if(error){err=error;break}
+      document.querySelectorAll(".reveal").forEach((el, i) => {
+        el.style.transitionDelay = (Math.min(i % 4, 3) * 70) + "ms";
+        io.observe(el);
+      });
+    } else {
+      document.querySelectorAll(".reveal").forEach(el => el.classList.add("shown"));
     }
-    if(err)return msg('impMsg','خطأ: '+err.message,'err');
-    msg('impMsg',`تم استيراد ${out.length} سطر تمرين ✅${skipped?` · تم تجاهل ${skipped}`:''}`,'ok');
-    loadBody();
-  },error:e=>msg('impMsg','تعذّرت قراءة الملف: '+e.message,'err')});
-}
 
-async function importMFP(inp){
-  const f=inp.files[0];if(!f)return;inp.value='';
-  msg('impMsg','جاري قراءة ملف MyFitnessPal...','ok');
-  Papa.parse(f,{header:true,skipEmptyLines:true,complete:async res=>{
-    const rows=res.data,headers=res.meta.fields||[];
-    const cDate=pickCol(headers,['date','التاريخ']);
-    const cMeal=pickCol(headers,['mealname','meal','الوجبة']);
-    const cCal=pickCol(headers,['calories','energykcal','energy','kcal','السعرات']);
-    const cProt=pickCol(headers,['proteing','protein','البروتين']);
-    const cCarb=pickCol(headers,['carbohydratesg','carbohydrates','carbsg','carbs']);
-    const cFat=pickCol(headers,['totalfatg','fatg','fat','الدهون']);
-    const cWater=pickCol(headers,['waterml','watercups','waterfloz','water','الماء']);
-    if(!cDate||!cCal)return msg('impMsg','لم أتعرف على أعمدة التاريخ/السعرات — أرسل لي سطر العناوين من الملف','err');
-    const wUnit=cWater?normH(cWater):'';
-    const days={};let skipped=0;
-    rows.forEach(r=>{
-      const d=parseDateCell(r[cDate]);
-      if(!d){skipped++;return}
-      if(cMeal){const m=normH(r[cMeal]);if(m==='total'||m==='totals'||m==='المجموع')return}
-      const day=days[d]=days[d]||{calories:0,protein_g:0,carbs_g:0,fat_g:0,waters:[]};
-      day.calories+=numV(r[cCal])||0;
-      if(cProt)day.protein_g+=numV(r[cProt])||0;
-      if(cCarb)day.carbs_g+=numV(r[cCarb])||0;
-      if(cFat)day.fat_g+=numV(r[cFat])||0;
-      if(cWater){const wv=numV(r[cWater]);if(wv!=null&&wv>0)day.waters.push(wv)}
-    });
-    const out=Object.entries(days).map(([d,v])=>{
-      let water=null;
-      if(v.waters.length){
-        const allEq=v.waters.every(x=>x===v.waters[0]);
-        water=allEq?v.waters[0]:v.waters.reduce((a,b)=>a+b,0);
-        if(wUnit.includes('cup'))water*=236.588;
-        else if(wUnit.includes('oz'))water*=29.5735;
-        water=Math.round(water);
-      }
-      return {user_id:me.id,on_date:d,calories:Math.round(v.calories),protein_g:Math.round(v.protein_g),carbs_g:Math.round(v.carbs_g),fat_g:Math.round(v.fat_g),water_ml:water};
-    });
-    if(!out.length)return msg('impMsg','لا صفوف صالحة في الملف'+(skipped?` (تم تجاهل ${skipped})`:''),'err');
-    let err=null;
-    for(let i=0;i<out.length;i+=500){
-      const{error}=await db.from('ds_nutrition_days').upsert(out.slice(i,i+500),{onConflict:'user_id,on_date'});
-      if(error){err=error;break}
+    const sections = ["top", "why", "modules", "build", "privacy"];
+    if ("IntersectionObserver" in window) {
+      const navIO = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (!e.isIntersecting) return;
+          document.querySelectorAll(".navlink").forEach(a => {
+            a.classList.toggle("is-active", a.getAttribute("href") === "#" + e.target.id);
+          });
+        });
+      }, { rootMargin: "-45% 0px -50% 0px" });
+      sections.forEach(id => { const el = document.getElementById(id); if (el) navIO.observe(el); });
     }
-    if(err)return msg('impMsg','خطأ: '+err.message,'err');
-    msg('impMsg',`تم استيراد ${out.length} يوم تغذية ✅${skipped?` · تم تجاهل ${skipped}`:''}`,'ok');
-    loadBody();
-  },error:e=>msg('impMsg','تعذّرت قراءة الملف: '+e.message,'err')});
-}
 
-// ============ BODY ANALYSIS ============
-function winCutoff(){if(!bodyWin)return null;const d=new Date();d.setDate(d.getDate()-(bodyWin-1));return dstr(d)}
-function setBodyWin(w,el){bodyWin=w;document.querySelectorAll('#bwChips .chip').forEach(x=>x.classList.remove('active'));el.classList.add('active');renderBodyAnalysis()}
-const e1rm=(w,r)=>w*(1+r/30);
-function renderBodyAnalysis(){
-  const cut=winCutoff();
-  const sets=cut?bodySets.filter(s=>s.on_date>=cut):bodySets;
-  const nut=cut?bodyNut.filter(n=>n.on_date>=cut):bodyNut;
-  const hasT=bodySets.length>0;
-  $('trainWrap').classList.toggle('hidden',!hasT);
-  $('trainEmpty').classList.toggle('hidden',hasT);
-  if(hasT){renderVolChart(sets);buildExSelect();renderExChart();renderPRs()}
-  const hasN=bodyNut.length>0;
-  $('nutWrap').classList.toggle('hidden',!hasN);
-  $('nutEmpty').classList.toggle('hidden',hasN);
-  if(hasN)renderNutrition(nut);
-}
-function renderVolChart(sets){
-  const wk={};
-  sets.forEach(s=>{if(!s.volume_kg)return;const d=new Date(s.on_date+'T00:00:00');d.setDate(d.getDate()-d.getDay());const k=dstr(d);wk[k]=(wk[k]||0)+Number(s.volume_kg)});
-  const keys=Object.keys(wk).sort();
-  if(volChartObj)volChartObj.destroy();
-  volChartObj=new Chart($('volChart'),{type:'bar',
-    data:{labels:keys.map(k=>k.slice(5)),datasets:[{data:keys.map(k=>Math.round(wk[k])),backgroundColor:'rgba(111,217,166,.45)',borderColor:'#6fd9a6',borderWidth:1,borderRadius:6}]},
-    options:{responsive:true,plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{display:false}},
-              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
-}
-function buildExSelect(){
-  const vol={};bodySets.forEach(s=>{vol[s.exercise]=(vol[s.exercise]||0)+(Number(s.volume_kg)||0)});
-  const list=Object.keys(vol).sort((a,b)=>vol[b]-vol[a]);
-  if(!selEx||!list.includes(selEx))selEx=list[0]||null;
-  $('exSelect').innerHTML=list.map(e=>`<option value="${esc(e)}" ${e===selEx?'selected':''}>${esc(e)}</option>`).join('');
-}
-function renderExChart(){
-  const cut=winCutoff();
-  const rows=bodySets.filter(s=>s.exercise===selEx&&s.reps&&s.weight_kg&&(!cut||s.on_date>=cut));
-  const byD={};rows.forEach(s=>{const v=e1rm(Number(s.weight_kg),Number(s.reps));if(!byD[s.on_date]||v>byD[s.on_date])byD[s.on_date]=v});
-  const keys=Object.keys(byD).sort();
-  if(exChartObj)exChartObj.destroy();
-  exChartObj=new Chart($('exChart'),{type:'line',
-    data:{labels:keys.map(k=>k.slice(5)),datasets:[{data:keys.map(k=>Math.round(byD[k]*10)/10),borderColor:'#d8bd84',backgroundColor:'rgba(216,189,132,.12)',fill:true,tension:.3,pointRadius:3,borderWidth:2}]},
-    options:{responsive:true,plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
-              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
-}
-function renderPRs(){
-  const best={};
-  bodySets.forEach(s=>{
-    if(!s.reps||!s.weight_kg)return;
-    const v=e1rm(Number(s.weight_kg),Number(s.reps));
-    if(!best[s.exercise]||v>best[s.exercise].v)best[s.exercise]={v,w:Number(s.weight_kg),r:Number(s.reps),d:s.on_date};
-  });
-  const top=Object.entries(best).sort((a,b)=>b[1].v-a[1].v).slice(0,5);
-  $('prList').innerHTML=top.length?top.map(([e,p])=>`
-    <div class="item"><div><b>${esc(e)}</b><div class="meta">${p.w} كجم × ${p.r} · ${p.d}</div></div>
-    <b style="color:var(--gold)">${Math.round(p.v*10)/10} <span style="font-size:10px">1RM</span></b></div>`).join('')
-    :'<div class="meta" style="text-align:center;padding:6px">لا أرقام بعد</div>';
-}
-function nutBar(label,avg,target,unit,overIsBad){
-  const pct=target?Math.min(100,avg/target*100):0;
-  const over=target&&avg>target&&overIsBad;
-  return `<div style="margin-top:10px">
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
-      <span>${label}: <b style="color:var(--text)">${fmt(avg)}</b> ${unit}</span>
-      <span>${target?'الهدف: '+fmt(target):'حدد الهدف من ⚙️'}</span></div>
-    <div class="bar"><div style="width:${pct}%;${over?'background:var(--red)':''}"></div></div>
-  </div>`;
-}
-function renderNutrition(nut){
-  const days=nut.length||1;
-  const avg=k=>Math.round(nut.reduce((a,n)=>a+(Number(n[k])||0),0)/days);
-  const wDays=nut.filter(n=>n.water_ml!=null);
-  const avgW=wDays.length?Math.round(wDays.reduce((a,n)=>a+Number(n.water_ml),0)/wDays.length):0;
-  $('nutBars').innerHTML=
-    nutBar('السعرات',avg('calories'),bodyTargets.cal,'kcal',true)+
-    nutBar('البروتين',avg('protein_g'),bodyTargets.prot,'جم',false)+
-    nutBar('الماء',avgW,bodyTargets.water,'مل',false);
-  const sorted=nut.slice().sort((a,b)=>a.on_date.localeCompare(b.on_date));
-  const keys=sorted.map(n=>n.on_date);
-  if(calChartObj)calChartObj.destroy();
-  const dsets=[{data:sorted.map(n=>Number(n.calories)||0),borderColor:'#6fd9a6',backgroundColor:'rgba(111,217,166,.1)',fill:true,tension:.3,pointRadius:2,borderWidth:2}];
-  if(bodyTargets.cal)dsets.push({data:keys.map(()=>bodyTargets.cal),borderColor:'#d8bd84',borderDash:[5,4],pointRadius:0,borderWidth:1.5,fill:false});
-  calChartObj=new Chart($('calChart'),{type:'line',data:{labels:keys.map(k=>k.slice(5)),datasets:dsets},
-    options:{responsive:true,plugins:{legend:{display:false}},
-      scales:{x:{ticks:{color:'#5c6f64',font:{size:9}},grid:{color:'rgba(255,255,255,.04)'}},
-              y:{ticks:{color:'#5c6f64',font:{size:10}},grid:{color:'rgba(255,255,255,.04)'}}}}});
-}
+    /* ══════════════════════════════════════════════════════════
+       Boot
+       ══════════════════════════════════════════════════════════ */
+    let saved = "ar";
+    try { saved = localStorage.getItem("do_lang") || "ar"; } catch (e) { }
+    applyLang(saved);
+  </script>
 
-// ============ HABITS ============
-async function loadHabits(){
-  editHabId=null;$('habSaveBtn').textContent='حفظ العادة';
-  const from=new Date();from.setDate(from.getDate()-59);
-  const[{data:hs},{data:logs}]=await Promise.all([
-    db.from('ds_habits').select('*').eq('active',true).order('sort_order'),
-    db.from('ds_habit_logs').select('habit_id,on_date').gte('on_date',dstr(from))
-  ]);
-  habits=hs||[];
-  const byH={};(logs||[]).forEach(l=>{byH[l.habit_id]=byH[l.habit_id]||new Set();byH[l.habit_id].add(l.on_date)});
-  $('habitsList').innerHTML=habits.map(h=>{
-    const set=byH[h.id]||new Set();
-    const doneToday=set.has(todayStr());
-    let streak=0;
-    for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);if(set.has(dstr(d)))streak++;else if(i>0)break;else continue}
-    let dots='';
-    for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dots+=`<div class="dot ${set.has(dstr(d))?'on':''}"></div>`}
-    return `<div class="hab ${doneToday?'done':''}">
-      <div class="box" onclick="toggleHabit(${h.id},${doneToday},'habits')">${doneToday?'✓':esc(h.icon)}</div>
-      <div class="nm">${esc(h.name)}<div class="dots">${dots}</div></div>
-      <div class="streak">🔥 ${streak}</div>
-      <button class="ico" onclick="editHab(${h.id})">✏️</button>
-      <button class="del" onclick="delHabit(${h.id})">✖</button>
-    </div>`;
-  }).join('')||'<div style="text-align:center;color:var(--muted);padding:10px">لا عادات — أضِف أول عادة</div>';
-}
-function openHabForm(){
-  const w=$('addHabWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editHabId=null;$('nhIcon').value='';$('nhName').value='';$('habSaveBtn').textContent='حفظ العادة'}
-}
-function editHab(id){
-  const h=habits.find(x=>x.id===id);if(!h)return;
-  editHabId=id;
-  $('nhIcon').value=h.icon||'';$('nhName').value=h.name;
-  $('habSaveBtn').textContent='تحديث العادة';
-  $('addHabWrap').classList.remove('hidden');
-}
-async function saveHab(){
-  const n=$('nhName').value.trim(),ic=$('nhIcon').value.trim()||'⭐';
-  if(!n)return msg('habMsg','اكتب اسم العادة','err');
-  if(busy)return;busy=true;
-  const q=editHabId
-    ? db.from('ds_habits').update({name:n,icon:ic}).eq('id',editHabId)
-    : db.from('ds_habits').insert({name:n,icon:ic,sort_order:habits.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('habMsg',error))return;
-  $('nhName').value='';$('nhIcon').value='';
-  $('addHabWrap').classList.add('hidden');
-  loadHabits();
-}
-async function delHabit(id){
-  if(!confirm('إيقاف هذي العادة؟ سجلها يبقى محفوظاً في ⚙️ الإعدادات'))return;
-  const{error}=await db.from('ds_habits').update({active:false}).eq('id',id);
-  if(fail('habMsg',error))return;
-  loadHabits();
-}
-
-// ============ العصف (NOTES) ============
-function showNotesView(v){
-  ['nvFolders','nvNotes','nvEditor'].forEach(x=>$(x).classList.add('hidden'));
-  $(v).classList.remove('hidden');
-}
-async function loadNotes(){
-  editFolderId=null;$('folderSaveBtn').textContent='حفظ المجلد';
-  $('noteSearch').value='';$('searchResults').innerHTML='';$('foldersList').style.display='';
-  const[{data:f},{data:n},{data:l}]=await Promise.all([
-    db.from('ds_note_folders').select('*').order('sort_order'),
-    db.from('ds_notes').select('*').order('updated_at',{ascending:false}),
-    db.from('ds_note_labels').select('*').order('sort_order')
-  ]);
-  noteFolders=f||[];allNotes=n||[];noteLabels=l||[];
-  renderFolders();
-  showNotesView('nvFolders');
-}
-function renderFolders(){
-  $('foldersList').innerHTML=noteFolders.length?noteFolders.map(f=>{
-    const cnt=allNotes.filter(x=>x.folder_id===f.id).length;
-    return `<div class="item" style="cursor:pointer" onclick="openFolder(${f.id})">
-      <div><b>${esc(f.icon)} ${esc(f.name)}</b><div class="meta">${cnt} ملاحظة</div></div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="event.stopPropagation();editFolder(${f.id})">✏️</button>
-        <button class="del" onclick="event.stopPropagation();delFolder(${f.id})">🗑️</button>
-      </span></div>`;
-  }).join(''):'<div style="text-align:center;color:var(--muted);padding:12px;font-size:12.5px">لا مجلدات — أنشئ أول مجلد لعصفك الذهني</div>';
-}
-function openFolderForm(){
-  const w=$('addFolderWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editFolderId=null;$('nfIcon').value='';$('nfName').value='';$('folderSaveBtn').textContent='حفظ المجلد'}
-}
-function editFolder(id){
-  const f=noteFolders.find(x=>x.id===id);if(!f)return;
-  editFolderId=id;
-  $('nfIcon').value=f.icon;$('nfName').value=f.name;
-  $('folderSaveBtn').textContent='تحديث المجلد';
-  $('addFolderWrap').classList.remove('hidden');
-}
-async function saveFolder(){
-  const n=$('nfName').value.trim(),ic=$('nfIcon').value.trim()||'📁';
-  if(!n)return msg('folderMsg','اكتب اسم المجلد','err');
-  if(busy)return;busy=true;
-  const q=editFolderId
-    ? db.from('ds_note_folders').update({name:n,icon:ic}).eq('id',editFolderId)
-    : db.from('ds_note_folders').insert({name:n,icon:ic,sort_order:noteFolders.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('folderMsg',error))return;
-  $('nfName').value='';$('nfIcon').value='';
-  $('addFolderWrap').classList.add('hidden');
-  loadNotes();
-}
-async function delFolder(id){
-  const cnt=allNotes.filter(x=>x.folder_id===id).length;
-  if(!confirm(`حذف المجلد وبداخله ${cnt} ملاحظة؟ لا تراجع`))return;
-  const{error}=await db.from('ds_note_folders').delete().eq('id',id);
-  if(fail('folderMsg',error))return;
-  loadNotes();
-}
-function openFolder(id){
-  curFolder=noteFolders.find(x=>x.id===id);if(!curFolder)return;
-  curLabelFilter=null;
-  $('nvFolderName').textContent=`${curFolder.icon} ${curFolder.name}`;
-  renderNotesList();
-  showNotesView('nvNotes');
-}
-function labelById(id){return noteLabels.find(l=>l.id===id)}
-function renderNotesList(){
-  $('labelChips').innerHTML=noteLabels.length?[
-    `<span class="chip ${curLabelFilter===null?'active':''}" onclick="filterLabel(null)">الكل</span>`,
-    ...noteLabels.map(l=>`<span class="chip ${curLabelFilter===l.id?'active':''}" onclick="filterLabel(${l.id})"><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</span>`)
-  ].join(''):'';
-  let list=allNotes.filter(x=>x.folder_id===curFolder.id);
-  if(curLabelFilter!==null)list=list.filter(x=>x.label_id===curLabelFilter);
-  list=list.slice().sort((a,b)=>(b.pinned-a.pinned)||b.updated_at.localeCompare(a.updated_at));
-  $('notesList').innerHTML=list.length?list.map(n=>{
-    const l=labelById(n.label_id);
-    const preview=stripHtml(n.body).slice(0,60);
-    const cs=chkStats(n.body);
-    return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
-      <div style="min-width:0"><b>${n.pinned?'📌 ':''}${l?`<span class="lbl-dot" style="background:${esc(l.color)}"></span>`:''}${esc(n.title)||'بدون عنوان'}</b>
-      <div class="meta">${cs?`☑️ ${cs.done}/${cs.total} · `:''}${preview?esc(preview)+' · ':''}${new Date(n.updated_at).toLocaleDateString('ar-SA',{day:'numeric',month:'short'})}</div></div>
-    </div>`;
-  }).join(''):'<div style="text-align:center;color:var(--muted);padding:12px;font-size:12.5px">لا ملاحظات هنا بعد</div>';
-}
-function filterLabel(id){curLabelFilter=id;renderNotesList()}
-async function newNote(){
-  if(busy)return;busy=true;
-  const{data,error}=await db.from('ds_notes').insert({folder_id:curFolder.id}).select().single();
-  busy=false;
-  if(fail('notesMsg',error))return;
-  allNotes.unshift(data);
-  openNote(data.id);
-}
-function openNote(id){
-  const n=allNotes.find(x=>x.id===id);if(!n)return;
-  if(!curFolder||curFolder.id!==n.folder_id)curFolder=noteFolders.find(f=>f.id===n.folder_id);
-  curNote=n;
-  $('edTitle').value=n.title;
-  const raw=n.body||'';
-  $('edBody').innerHTML=raw?(looksLikeHtml(raw)?sanitizeHtml(raw):textToHtml(raw)):'';
-  renderEdLabels();
-  $('pinBtn').style.color=n.pinned?'var(--gold)':'var(--muted)';
-  $('saveState').textContent='محفوظ ✓';$('saveState').style.color='var(--muted)';
-  showNotesView('nvEditor');
-  try{document.execCommand('defaultParagraphSeparator',false,'p')}catch(e){}
-  syncToolbar();
-}
-function renderEdLabels(){
-  $('edLabels').innerHTML=noteLabels.map(l=>
-    `<span class="chip ${curNote.label_id===l.id?'active':''}" onclick="setNoteLabel(${l.id})"><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</span>`
-  ).join('')+(noteLabels.length?`<span class="chip ${curNote.label_id===null?'active':''}" onclick="setNoteLabel(null)">بدون</span>`:'');
-}
-async function setNoteLabel(id){
-  if(!curNote)return;
-  const{error}=await db.from('ds_notes').update({label_id:id}).eq('id',curNote.id);
-  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
-  curNote.label_id=id;renderEdLabels();
-}
-// --- toolbar ---
-function fmtBlock(tag){
-  $('edBody').focus();
-  try{document.execCommand('formatBlock',false,'<'+tag.toUpperCase()+'>')}catch(e){}
-  noteDirty();syncToolbar();
-}
-function fmtInline(cmd){
-  $('edBody').focus();
-  try{document.execCommand(cmd,false,null)}catch(e){}
-  noteDirty();syncToolbar();
-}
-function clearFmt(){
-  $('edBody').focus();
-  try{
-    document.execCommand('removeFormat',false,null);
-    document.execCommand('formatBlock',false,'<P>');
-  }catch(e){}
-  noteDirty();syncToolbar();
-}
-function syncToolbar(){
-  let block='';
-  try{block=String(document.queryCommandValue('formatBlock')||'').toLowerCase()}catch(e){}
-  const on=(id,v)=>$(id)&&$(id).classList.toggle('on',!!v);
-  on('tbH2',block==='h2');
-  on('tbH3',block==='h3');
-  on('tbP',block==='p'||block==='div'||block==='');
-  try{
-    on('tbB',document.queryCommandState('bold'));
-    on('tbI',document.queryCommandState('italic'));
-    const cli=selBlock('li');
-    on('tbChk',!!(cli&&cli.parentElement&&cli.parentElement.hasAttribute('data-chk')));
-    on('tbUL',document.queryCommandState('insertUnorderedList'));
-    on('tbOL',document.queryCommandState('insertOrderedList'));
-  }catch(e){}
-}
-function selBlock(sel){
-  const s=window.getSelection();
-  if(!s||!s.rangeCount)return null;
-  let n=s.getRangeAt(0).startContainer;
-  if(n.nodeType===3)n=n.parentNode;
-  if(!n||!n.closest)return null;
-  const el=n.closest(sel);
-  return (el&&$('edBody').contains(el))?el:null;
-}
-function fmtChecklist(){
-  $('edBody').focus();
-  const li=selBlock('li');
-  const inChk=li&&li.parentElement&&li.parentElement.hasAttribute('data-chk');
-  if(inChk){
-    const ul=li.parentElement;
-    ul.removeAttribute('data-chk');
-    [...ul.querySelectorAll('li')].forEach(x=>x.removeAttribute('data-done'));
-    try{document.execCommand('insertUnorderedList',false,null)}catch(e){}
-  }else{
-    if(!li){try{document.execCommand('insertUnorderedList',false,null)}catch(e){}}
-    const ul=selBlock('ul');
-    if(ul){
-      ul.setAttribute('data-chk','1');
-      [...ul.querySelectorAll('li')].forEach(x=>{if(!x.hasAttribute('data-done'))x.setAttribute('data-done','0')});
-    }
-  }
-  noteDirty();syncToolbar();
-}
-function chkStats(html){
-  const box=document.createElement('div');
-  box.innerHTML=String(html||'');
-  const items=box.querySelectorAll('ul[data-chk] li');
-  if(!items.length)return null;
-  let done=0;
-  items.forEach(li=>{if(li.getAttribute('data-done')==='1')done++});
-  return{done,total:items.length};
-}
-
-// ============ FOCUS TIMER (no storage — resets on refresh) ============
-const POMO={work:25*60,brk:5*60};
-let tmMode='up',tmRunning=false,tmStartedAt=0,tmAcc=0,tmTick=null,tmPhase='work',tmDone=0,tmAudio=null;
-const tmElapsed=()=>tmAcc+(tmRunning?Date.now()-tmStartedAt:0);
-function fmtClock(ms){
-  const s=Math.max(0,Math.round(ms/1000));
-  const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
-  return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
-}
-function tmBeep(){
-  try{
-    tmAudio=tmAudio||new (window.AudioContext||window.webkitAudioContext)();
-    if(tmAudio.state==='suspended')tmAudio.resume();
-    [0,0.45].forEach(off=>{
-      const o=tmAudio.createOscillator(),g=tmAudio.createGain();
-      o.connect(g);g.connect(tmAudio.destination);
-      o.type='sine';o.frequency.value=880;
-      const t=tmAudio.currentTime+off;
-      g.gain.setValueAtTime(0.0001,t);
-      g.gain.exponentialRampToValueAtTime(0.22,t+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+0.35);
-      o.start(t);o.stop(t+0.4);
-    });
-  }catch(e){}
-  try{navigator.vibrate&&navigator.vibrate([180,90,180])}catch(e){}
-}
-function setTimerMode(m){
-  if(tmMode===m)return;
-  tmMode=m;tmStop();tmAcc=0;tmPhase='work';
-  $('tmChipUp').classList.toggle('active',m==='up');
-  $('tmChipPomo').classList.toggle('active',m==='pomo');
-  tmRender();
-}
-function tmStop(){
-  if(tmRunning){tmAcc+=Date.now()-tmStartedAt;tmRunning=false}
-  if(tmTick){clearInterval(tmTick);tmTick=null}
-}
-function tmToggle(){
-  if(tmRunning){tmStop()}
-  else{
-    tmRunning=true;tmStartedAt=Date.now();
-    if(tmTick)clearInterval(tmTick);
-    tmTick=setInterval(tmRender,250);
-    try{tmAudio=tmAudio||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
-  }
-  tmRender();
-}
-function tmReset(){
-  tmStop();tmAcc=0;
-  if(tmMode==='pomo'){tmPhase='work';tmDone=0}
-  tmRender();
-}
-function tmComplete(){
-  tmStop();tmAcc=0;
-  tmBeep();
-  if(tmPhase==='work'){tmDone++;tmPhase='brk'}
-  else tmPhase='work';
-  tmRender();
-  $('tmPhaseTxt').textContent=tmPhase==='brk'?`انتهت الجلسة ✅ — خذ راحة ٥ دقائق · جلسات: ${tmDone}`:'انتهت الراحة ☕ — ارجع للتركيز';
-}
-function tmRender(){
-  if(tmMode==='up'){
-    $('tmDisplay').textContent=fmtClock(tmElapsed());
-    $('tmPhaseTxt').textContent=tmRunning?'يعمل...':(tmElapsed()?'متوقف':'جاهز');
-    $('tmBarWrap').classList.add('hidden');
-  }else{
-    const total=POMO[tmPhase]*1000,el=tmElapsed();
-    if(el>=total)return tmComplete();
-    $('tmDisplay').textContent=fmtClock(total-el);
-    $('tmPhaseTxt').textContent=(tmPhase==='work'?'🍅 تركيز':'☕ راحة')+(tmDone?` · جلسات: ${tmDone}`:'');
-    $('tmBarWrap').classList.remove('hidden');
-    $('tmBar').style.width=Math.min(100,el/total*100)+'%';
-  }
-  $('tmStart').textContent=tmRunning?'إيقاف مؤقت ⏸':'ابدأ';
-}
-
-function noteDirty(){
-  $('saveState').textContent='...';$('saveState').style.color='var(--muted)';
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(doSaveNote,900);
-}
-async function doSaveNote(){
-  if(!curNote)return;
-  clearTimeout(saveTimer);saveTimer=null;
-  const payload={title:$('edTitle').value,body:sanitizeHtml($('edBody').innerHTML),updated_at:new Date().toISOString()};
-  const{error}=await db.from('ds_notes').update(payload).eq('id',curNote.id);
-  if(error){$('saveState').textContent='⚠️ لم يُحفظ: '+error.message;$('saveState').style.color='var(--red)';return}
-  Object.assign(curNote,payload);
-  $('saveState').textContent='محفوظ ✓';$('saveState').style.color='var(--muted)';
-}
-function flushNoteSave(){if(saveTimer)doSaveNote()}
-async function togglePin(){
-  if(!curNote)return;
-  const p=!curNote.pinned;
-  const{error}=await db.from('ds_notes').update({pinned:p}).eq('id',curNote.id);
-  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
-  curNote.pinned=p;
-  $('pinBtn').style.color=p?'var(--gold)':'var(--muted)';
-}
-async function delNote(){
-  if(!curNote)return;
-  if(!confirm('حذف هذه الملاحظة نهائياً؟'))return;
-  const{error}=await db.from('ds_notes').delete().eq('id',curNote.id);
-  if(error){$('saveState').textContent='⚠️ خطأ: '+error.message;$('saveState').style.color='var(--red)';return}
-  allNotes=allNotes.filter(x=>x.id!==curNote.id);
-  curNote=null;
-  renderNotesList();showNotesView('nvNotes');
-}
-async function notesBack(to){
-  flushNoteSave();
-  if(to==='nvNotes'&&curNote&&!$('edTitle').value.trim()&&!stripHtml($('edBody').innerHTML)){
-    await db.from('ds_notes').delete().eq('id',curNote.id);
-    allNotes=allNotes.filter(x=>x.id!==curNote.id);
-  }
-  curNote=null;
-  if(to==='nvNotes'){renderNotesList();showNotesView('nvNotes')}
-  else{renderFolders();showNotesView('nvFolders')}
-}
-function searchNotes(){
-  const q=$('noteSearch').value.trim().toLowerCase();
-  if(!q){$('searchResults').innerHTML='';$('foldersList').style.display='';return}
-  $('foldersList').style.display='none';
-  const hits=allNotes.filter(n=>(n.title||'').toLowerCase().includes(q)||stripHtml(n.body).toLowerCase().includes(q)).slice(0,20);
-  $('searchResults').innerHTML=hits.length?hits.map(n=>{
-    const f=noteFolders.find(x=>x.id===n.folder_id);
-    return `<div class="item" style="cursor:pointer" onclick="openNote(${n.id})">
-      <div><b>${esc(n.title)||'بدون عنوان'}</b><div class="meta">${f?esc(f.icon+' '+f.name):''}</div></div>
-    </div>`;
-  }).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12px">لا نتائج</div>';
-}
-
-// ============ SETTINGS ============
-async function loadSettings(){
-  editCatId=null;$('catSaveBtn').textContent='حفظ الفئة';
-  editLabelId=null;$('labelSaveBtn').textContent='حفظ الفئة';
-  editDebtCatId=null;$('debtCatSaveBtn').textContent='حفظ الفئة';
-  const[{data:st},{data:cs},{data:ad},{data:ah},{data:ls},{data:dc}]=await Promise.all([
-    db.from('ds_settings').select('*').maybeSingle(),
-    db.from('ds_expense_categories').select('*').order('sort_order'),
-    db.from('ds_debts').select('*').eq('active',false).order('amount'),
-    db.from('ds_habits').select('*').eq('active',false).order('sort_order'),
-    db.from('ds_note_labels').select('*').order('sort_order'),
-    db.from('ds_debt_categories').select('*').order('sort_order')
-  ]);
-  allCats=cs||[];noteLabels=ls||[];debtCats=dc||[];
-  $('stName').value=(st&&st.display_name)||'';
-  $('stRecvTitle').value=(st&&st.recv_title)||'';
-  $('stBudget').value=st?Number(st.monthly_leak_budget):'';
-  $('stTarget').value=(st&&st.weight_target!=null)?Number(st.weight_target):'';
-  $('stCal').value=(st&&st.cal_target!=null)?Number(st.cal_target):'';
-  $('stProtein').value=(st&&st.protein_target!=null)?Number(st.protein_target):'';
-  $('stWater').value=(st&&st.water_target_ml!=null)?Number(st.water_target_ml):'';
-  $('debtCatList').innerHTML=debtCats.length?debtCats.map(c=>`
-    <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.name)}</b>${c.count_in_total?'':'<div class="meta">لا يُحسب في «متبقي ديوني»</div>'}${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" style="color:${c.count_in_total?'var(--gold)':'var(--muted)'}" title="يُحسب في متبقي ديوني" onclick="toggleDebtCatCount(${c.id},${!c.count_in_total})">🧮</button>
-        <button class="ico" onclick="editDebtCat(${c.id})">✏️</button>
-        ${c.active
-          ?`<button class="ico" onclick="setDebtCatActive(${c.id},false)">🗄️</button>`
-          :`<button class="ico" onclick="setDebtCatActive(${c.id},true)">↩️</button>`}
-        <button class="del" onclick="delDebtCat(${c.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — مثلاً: شخصية، عائلية، حكومية</div>';
-  $('catList').innerHTML=allCats.length?allCats.map(c=>`
-    <div class="item ${c.active?'':'dim'}"><div><b>${esc(c.icon)} ${esc(c.name)}</b>${c.active?'':'<div class="meta">مؤرشفة</div>'}</div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="editCat(${c.id})">✏️</button>
-        ${c.active
-          ?`<button class="ico" onclick="setCatActive(${c.id},false)">🗄️</button>`
-          :`<button class="ico" onclick="setCatActive(${c.id},true)">↩️</button>`}
-        <button class="del" onclick="delCat(${c.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد</div>';
-  $('labelList').innerHTML=noteLabels.length?noteLabels.map(l=>`
-    <div class="item"><div><b><span class="lbl-dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</b></div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="editLabel(${l.id})">✏️</button>
-        <button class="del" onclick="delLabel(${l.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">لا فئات بعد — تُستخدم لتلوين وتجميع ملاحظات العصف</div>';
-  $('archDebts').innerHTML=(ad||[]).length?(ad||[]).map(d=>`
-    <div class="item dim"><div><b>${esc(d.name)}</b><div class="meta">${fmt(d.amount)} ريال</div></div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="restoreDebt(${d.id})">↩️</button>
-        <button class="del" onclick="hardDelDebt(${d.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:6px">لا ديون مؤرشفة</div>';
-  $('archHabits').innerHTML=(ah||[]).length?(ah||[]).map(h=>`
-    <div class="item dim"><div><b>${esc(h.icon)} ${esc(h.name)}</b></div>
-      <span style="display:flex;gap:2px;align-items:center">
-        <button class="ico" onclick="restoreHabit(${h.id})">↩️</button>
-        <button class="del" onclick="hardDelHabit(${h.id})">🗑️</button>
-      </span></div>`).join(''):'<div style="color:var(--muted);font-size:11px;text-align:center;padding:6px">لا عادات موقوفة</div>';
-}
-async function saveSettings(){
-  const b=parseFloat($('stBudget').value);
-  if(isNaN(b)||b<0)return msg('stMsg','أدخل حد مصاريف صحيح','err');
-  const numOrNull=id=>{const r=$(id).value.trim();if(r==='')return null;const n=parseFloat(r);return(isNaN(n)||n<0)?undefined:n};
-  const t=numOrNull('stTarget'),cal=numOrNull('stCal'),prot=numOrNull('stProtein'),wat=numOrNull('stWater');
-  if([t,cal,prot,wat].includes(undefined))return msg('stMsg','تأكد من الأرقام — أو اترك الحقل فارغاً','err');
-  const dn=$('stName').value.trim()||null;
-  const rt=$('stRecvTitle').value.trim()||'المستحقات';
-  const{error}=await db.from('ds_settings').upsert({user_id:me.id,monthly_leak_budget:b,weight_target:t,display_name:dn,recv_title:rt,cal_target:cal,protein_target:prot,water_target_ml:wat},{onConflict:'user_id'});
-  if(fail('stMsg',error))return;
-  if(dn){me.full_name=dn;$('gName').textContent=dn.split(' ')[0]}
-  msg('stMsg','حُفظت الإعدادات ✅','ok');
-}
-function openDebtCatForm(){
-  const w=$('addDebtCatWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editDebtCatId=null;$('dcName').value='';$('debtCatSaveBtn').textContent='حفظ الفئة'}
-}
-function editDebtCat(id){
-  const c=debtCats.find(x=>x.id===id);if(!c)return;
-  editDebtCatId=id;
-  $('dcName').value=c.name;
-  $('debtCatSaveBtn').textContent='تحديث الفئة';
-  $('addDebtCatWrap').classList.remove('hidden');
-}
-async function saveDebtCat(){
-  const n=$('dcName').value.trim();
-  if(!n)return msg('debtCatMsg','اكتب اسم الفئة','err');
-  if(busy)return;busy=true;
-  const q=editDebtCatId
-    ? db.from('ds_debt_categories').update({name:n}).eq('id',editDebtCatId)
-    : db.from('ds_debt_categories').insert({name:n,sort_order:debtCats.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('debtCatMsg',error))return;
-  $('dcName').value='';
-  $('addDebtCatWrap').classList.add('hidden');
-  loadSettings();
-}
-async function toggleDebtCatCount(id,val){
-  const{error}=await db.from('ds_debt_categories').update({count_in_total:val}).eq('id',id);
-  if(fail('debtCatMsg',error))return;
-  loadSettings();
-}
-async function setDebtCatActive(id,active){
-  if(!active){
-    const{count}=await db.from('ds_debts').select('*',{count:'exact',head:true}).eq('category_id',id).eq('active',true);
-    if(count>0)return msg('debtCatMsg','الفئة فيها ديون نشطة — انقلها أو أرشِفها أولاً','err');
-  }
-  const{error}=await db.from('ds_debt_categories').update({active}).eq('id',id);
-  if(fail('debtCatMsg',error))return;
-  loadSettings();
-}
-async function delDebtCat(id){
-  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
-  const{error}=await db.from('ds_debt_categories').delete().eq('id',id);
-  if(error){
-    if(error.code==='23503')msg('debtCatMsg','الفئة فيها ديون مسجّلة — انقلها أو احذفها أولاً','err');
-    else fail('debtCatMsg',error);
-    return;
-  }
-  loadSettings();
-}
-function openCatForm(){
-  const w=$('addCatWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editCatId=null;$('ncIcon').value='';$('ncName').value='';$('catSaveBtn').textContent='حفظ الفئة'}
-}
-function editCat(id){
-  const c=allCats.find(x=>x.id===id);if(!c)return;
-  editCatId=id;
-  $('ncIcon').value=c.icon||'';$('ncName').value=c.name;
-  $('catSaveBtn').textContent='تحديث الفئة';
-  $('addCatWrap').classList.remove('hidden');
-}
-async function saveCat(){
-  const n=$('ncName').value.trim(),ic=$('ncIcon').value.trim()||'📦';
-  if(!n)return msg('catMsg','اكتب اسم الفئة','err');
-  if(busy)return;busy=true;
-  const q=editCatId
-    ? db.from('ds_expense_categories').update({name:n,icon:ic}).eq('id',editCatId)
-    : db.from('ds_expense_categories').insert({name:n,icon:ic,sort_order:allCats.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('catMsg',error))return;
-  $('ncName').value='';$('ncIcon').value='';
-  $('addCatWrap').classList.add('hidden');
-  loadSettings();
-}
-async function setCatActive(id,active){
-  const{error}=await db.from('ds_expense_categories').update({active}).eq('id',id);
-  if(fail('catMsg',error))return;
-  loadSettings();
-}
-async function delCat(id){
-  if(!confirm('حذف هذه الفئة نهائياً؟'))return;
-  const{error}=await db.from('ds_expense_categories').delete().eq('id',id);
-  if(error){
-    if(error.code==='23503')msg('catMsg','الفئة مستخدمة في مصاريف مسجّلة — أرشِفها بدلاً من الحذف','err');
-    else fail('catMsg',error);
-    return;
-  }
-  loadSettings();
-}
-function renderColorChips(){
-  $('nlColors').innerHTML=LABEL_COLORS.map(c=>
-    `<span class="cchip ${chosenLabelColor===c?'active':''}" style="background:${c}" onclick="pickLabelColor('${c}')"></span>`
-  ).join('');
-}
-function pickLabelColor(c){chosenLabelColor=c;renderColorChips()}
-function openLabelForm(){
-  const w=$('addLabelWrap'),opening=w.classList.contains('hidden');
-  w.classList.toggle('hidden');
-  if(opening){editLabelId=null;$('nlName').value='';chosenLabelColor=LABEL_COLORS[0];renderColorChips();$('labelSaveBtn').textContent='حفظ الفئة'}
-}
-function editLabel(id){
-  const l=noteLabels.find(x=>x.id===id);if(!l)return;
-  editLabelId=id;$('nlName').value=l.name;chosenLabelColor=l.color;renderColorChips();
-  $('labelSaveBtn').textContent='تحديث الفئة';
-  $('addLabelWrap').classList.remove('hidden');
-}
-async function saveLabel(){
-  const n=$('nlName').value.trim();
-  if(!n)return msg('labelMsg','اكتب اسم الفئة','err');
-  if(busy)return;busy=true;
-  const q=editLabelId
-    ? db.from('ds_note_labels').update({name:n,color:chosenLabelColor}).eq('id',editLabelId)
-    : db.from('ds_note_labels').insert({name:n,color:chosenLabelColor,sort_order:noteLabels.length+1});
-  const{error}=await q;
-  busy=false;
-  if(fail('labelMsg',error))return;
-  $('nlName').value='';
-  $('addLabelWrap').classList.add('hidden');
-  loadSettings();
-}
-async function delLabel(id){
-  if(!confirm('حذف هذه الفئة؟ الملاحظات تبقى بدون فئة'))return;
-  const{error}=await db.from('ds_note_labels').delete().eq('id',id);
-  if(fail('labelMsg',error))return;
-  loadSettings();
-}
-async function restoreDebt(id){
-  const{error}=await db.from('ds_debts').update({active:true}).eq('id',id);
-  if(fail('archMsg',error))return;
-  loadSettings();
-}
-async function hardDelDebt(id){
-  if(!confirm('حذف نهائي؟ سيُحذف الدين وكل سداداته ولا يمكن التراجع'))return;
-  const{error}=await db.from('ds_debts').delete().eq('id',id);
-  if(fail('archMsg',error))return;
-  loadSettings();
-}
-async function restoreHabit(id){
-  const{error}=await db.from('ds_habits').update({active:true}).eq('id',id);
-  if(fail('archMsg',error))return;
-  loadSettings();
-}
-async function hardDelHabit(id){
-  if(!confirm('حذف نهائي؟ سيُحذف سجل العادة كاملاً ولا يمكن التراجع'))return;
-  const{error}=await db.from('ds_habits').delete().eq('id',id);
-  if(fail('archMsg',error))return;
-  loadSettings();
-}
-
-// ============ BACKUP EXPORT ============
-const BACKUP_TABLES=[
-  ['ds_settings','user_id'],['ds_debt_categories','id'],['ds_debts','id'],['ds_payments','id'],
-  ['ds_receivables','id'],['ds_expense_categories','id'],['ds_expenses','id'],['ds_tasks','id'],
-  ['ds_habits','id'],['ds_habit_logs','on_date'],['ds_weights','on_date'],['ds_workouts','on_date'],
-  ['ds_note_folders','id'],['ds_note_labels','id'],['ds_notes','id'],
-  ['ds_workout_sets','id'],['ds_nutrition_days','on_date']
-];
-async function dumpTable(name,orderCol){
-  let out=[],from=0;const page=1000;
-  while(true){
-    let q=db.from(name).select('*').range(from,from+page-1);
-    if(orderCol)q=q.order(orderCol);
-    const{data,error}=await q;
-    if(error){
-      if(orderCol)return dumpTable(name,null);
-      throw new Error(name+' — '+error.message);
-    }
-    out=out.concat(data||[]);
-    if(!data||data.length<page)break;
-    from+=page;
-  }
-  return out;
-}
-async function exportBackup(){
-  if(busy)return;busy=true;
-  $('backupBtn').disabled=true;
-  try{
-    const dump={app:'DaObserver',version:'3.4',exported_at:new Date().toISOString(),user_id:me.id,tables:{}};
-    let total=0;
-    for(const[name,col]of BACKUP_TABLES){
-      msg('backupMsg','جاري التصدير... '+name,'ok');
-      const rows=await dumpTable(name,col);
-      dump.tables[name]=rows;
-      total+=rows.length;
-    }
-    const blob=new Blob([JSON.stringify(dump,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;a.download=`daobserver-backup-${todayStr()}.json`;
-    document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),2000);
-    msg('backupMsg',`حُفظت النسخة ✅ · ${BACKUP_TABLES.length} جدول · ${fmt(total)} سجل`,'ok');
-  }catch(e){
-    msg('backupMsg','تعذّر التصدير: '+e.message,'err');
-  }finally{
-    busy=false;$('backupBtn').disabled=false;
-  }
-}
-
-// Enter keys + paste-as-plain-text + session restore
-$('last4').addEventListener('keydown',e=>{if(e.key==='Enter')$('pin').focus()});
-$('pin').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-$('edBody').addEventListener('paste',e=>{
-  e.preventDefault();
-  const t=((e.clipboardData||window.clipboardData).getData('text/plain')||'');
-  try{document.execCommand('insertText',false,t)}catch(err){}
-  noteDirty();
-});
-$('edBody').addEventListener('click',e=>{
-  const li=e.target&&e.target.closest?e.target.closest('li'):null;
-  if(!li||!li.parentElement||!li.parentElement.hasAttribute('data-chk'))return;
-  const r=li.getBoundingClientRect();
-  const rtl=getComputedStyle($('edBody')).direction==='rtl';
-  const hit=rtl?(e.clientX>r.right-34):(e.clientX<r.left+34);
-  if(!hit)return;
-  e.preventDefault();
-  li.setAttribute('data-done',li.getAttribute('data-done')==='1'?'0':'1');
-  noteDirty();
-});
-$('edBody').addEventListener('keydown',e=>{
-  if(e.key!=='Enter')return;
-  const li=selBlock('li');
-  if(!li||!li.parentElement||!li.parentElement.hasAttribute('data-chk'))return;
-  setTimeout(()=>{
-    const l2=selBlock('li');
-    if(l2&&l2.parentElement&&l2.parentElement.hasAttribute('data-chk'))l2.setAttribute('data-done','0');
-  },0);
-});
-db.auth.getSession().then(({data:{session}})=>{if(session)boot()});
-</script>
 </body>
+
 </html>
