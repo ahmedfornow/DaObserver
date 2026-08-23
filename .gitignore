@@ -1,0 +1,11 @@
+node_modules/
+package-lock.json
+
+# Never publish these — GitHub Pages serves everything you commit
+.env
+auth.json
+assets/auth.json
+.pw-profile/
+
+# Raw screenshots feed compose-hero but don't need to be on the live site
+assets/screens/
