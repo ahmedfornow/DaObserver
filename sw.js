@@ -6,14 +6,13 @@
  *
  * Bump VERSION whenever index.html changes so old caches are dropped.
  */
-const VERSION = 'v3.7.0';
+const VERSION = 'v4.0.0';
 const SHELL = 'daobserver-shell-' + VERSION;
 const RUNTIME = 'daobserver-runtime-' + VERSION;
 
 const PRECACHE = [
   './',
   './index.html',
-  './hero.jpg',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
